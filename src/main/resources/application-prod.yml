@@ -1,0 +1,31 @@
+# 운영 (EKS) — 모든 값은 환경변수(ConfigMap / Secret)로 주입한다.
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    hikari:
+      # (HPA 최대 파드 수 x 이 값) < RDS max_connections
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE:10}
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      password: ${SPRING_DATA_REDIS_PASSWORD}
+      ssl:
+        enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+jwt:
+  secret: ${JWT_SECRET}
+
+logging:
+  level:
+    root: INFO
+    com.u1_2.effect: INFO

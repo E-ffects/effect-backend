@@ -1,0 +1,56 @@
+# 공통 설정 (모든 프로필)
+# 프로필별 값은 application-local.yml / application-prod.yml
+
+spring:
+  application:
+    name: effect
+  profiles:
+    default: local
+
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    time-zone: Asia/Seoul
+
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
+
+  flyway:
+    locations: classpath:db/migration
+
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+jwt:
+  access-token-ttl: 30m
+  refresh-token-ttl: 7d
+  cookie-secure: true
+
+server:
+  port: 8000
+  servlet:
+    context-path: /api
+  shutdown: graceful
+  forward-headers-strategy: framework
+
+# Actuator는 관리 포트(8081)로 분리: 외부(ALB)에는 8000만 노출하고, k8s 프로브만 8081로 접근
+management:
+  server:
+    port: 8081
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
