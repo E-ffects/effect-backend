@@ -23,7 +23,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private static final String[] PUBLIC_POST = {"/auth/login", "/auth/signup"};
+    private static final String[] PUBLIC_POST = {"/auth/login", "/auth/signup", "/auth/reissue", "/auth/logout"};
     private static final String[] PUBLIC_GET = {"/auth/check-username"};
     private static final String[] PUBLIC_ANY = {
             "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
