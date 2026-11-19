@@ -9,9 +9,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 import com.u1_2.effect.TestcontainersConfiguration;
+import com.u1_2.effect.config.jwt.JwtProperties;
 import com.u1_2.effect.config.jwt.JwtProvider;
+import com.u1_2.effect.config.jwt.RefreshTokenCookie;
 import com.u1_2.effect.user.domain.Role;
 import com.u1_2.effect.user.domain.UserRepository;
+import jakarta.servlet.http.Cookie;
+import java.time.Duration;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,6 +44,7 @@ class AuthIntegrationTest {
     @Autowired UserRepository userRepository;
     @Autowired StringRedisTemplate redisTemplate;
     @Autowired JwtProvider jwtProvider;
+    @Autowired JwtProperties jwtProperties;
 
     @BeforeEach
     void clean() {
@@ -137,6 +142,104 @@ class AuthIntegrationTest {
         mockMvc.perform(get("/rmas").header(HttpHeaders.AUTHORIZATION, "Bearer " + refresh))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
+    }
+
+    @Test
+    void 재발급하면_새_Access_Token과_새_Refresh_쿠키를_받고_이전_Refresh는_무효() throws Exception {
+        signup();
+        String oldRefresh = refreshCookie(login("hong", "Passw0rd!"));
+
+        ResultActions reissued = reissue(oldRefresh)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.token").isNotEmpty());
+        String newRefresh = refreshCookie(reissued);
+        assertThat(newRefresh).isNotEqualTo(oldRefresh);
+
+        // 새 Access Token으로 인증 통과
+        String token = JsonPath.read(reissued.andReturn().getResponse().getContentAsString(), "$.content.token");
+        mockMvc.perform(get("/nothing").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNotFound());
+
+        // 교체된 이전 Refresh는 거절, 새 Refresh는 사용 가능
+        reissue(oldRefresh).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
+        reissue(newRefresh).andExpect(status().isOk());
+    }
+
+    @Test
+    void 만료된_Access_Token이_헤더에_있어도_재발급된다() throws Exception {
+        signup();
+        String refresh = refreshCookie(login("hong", "Passw0rd!"));
+
+        mockMvc.perform(post("/auth/reissue")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + expiredAccessToken())
+                        .cookie(new Cookie(RefreshTokenCookie.NAME, refresh)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void Refresh_쿠키_없이_재발급하면_401_UNAUTHORIZED() throws Exception {
+        mockMvc.perform(post("/auth/reissue"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void Access_Token으로_재발급하면_401_INVALID_TOKEN() throws Exception {
+        String access = jwtProvider.createAccessToken(1L, Role.CS);
+        reissue(access).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
+    }
+
+    @Test
+    void 로그아웃하면_Redis에서_삭제되고_쿠키가_만료되며_재발급할_수_없다() throws Exception {
+        signup();
+        String refresh = refreshCookie(login("hong", "Passw0rd!"));
+        Long userId = userRepository.findByUsername("hong").orElseThrow().getId();
+
+        mockMvc.perform(post("/auth/logout").cookie(new Cookie(RefreshTokenCookie.NAME, refresh)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, Matchers.allOf(
+                        Matchers.startsWith("refresh_token=;"),
+                        Matchers.containsString("Max-Age=0"))));
+
+        assertThat(redisTemplate.hasKey("refresh:" + userId)).isFalse();
+        reissue(refresh).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void 쿠키_없이_로그아웃해도_200() throws Exception {
+        mockMvc.perform(post("/auth/logout"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, Matchers.containsString("Max-Age=0")));
+    }
+
+    @Test
+    void 이전_Refresh로_로그아웃해도_새_세션은_유지된다() throws Exception {
+        signup();
+        String oldRefresh = refreshCookie(login("hong", "Passw0rd!"));
+        String newRefresh = refreshCookie(login("hong", "Passw0rd!"));
+
+        mockMvc.perform(post("/auth/logout").cookie(new Cookie(RefreshTokenCookie.NAME, oldRefresh)))
+                .andExpect(status().isOk());
+        reissue(newRefresh).andExpect(status().isOk());
+    }
+
+    private ResultActions reissue(String refreshToken) throws Exception {
+        return mockMvc.perform(post("/auth/reissue").cookie(new Cookie(RefreshTokenCookie.NAME, refreshToken)));
+    }
+
+    private String refreshCookie(ResultActions result) {
+        Cookie cookie = result.andReturn().getResponse().getCookie(RefreshTokenCookie.NAME);
+        assertThat(cookie).isNotNull();
+        return cookie.getValue();
+    }
+
+    private String expiredAccessToken() {
+        JwtProperties expired = new JwtProperties(
+                jwtProperties.secret(), Duration.ofSeconds(-1), jwtProperties.refreshTokenTtl(), false);
+        return new JwtProvider(expired).createAccessToken(1L, Role.CS);
     }
 
     private ResultActions signup() throws Exception {
