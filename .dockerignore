@@ -1,0 +1,10 @@
+.git
+.github
+.gradle
+.idea
+.omc
+build
+docs
+HELP.md
+docker-compose.yml
+src/main/resources/application-local.yml
