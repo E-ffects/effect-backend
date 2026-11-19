@@ -8,11 +8,10 @@ spring:
 
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST}
+      # 같은 네임스페이스의 Redis Service
+      host: ${SPRING_DATA_REDIS_HOST:redis}
       port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD}
-      ssl:
-        enabled: true
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
 
   jpa:
     hibernate:
