@@ -50,7 +50,7 @@ jobs:
           kustomize edit set image ${{ env.IMAGE }}=${{ env.IMAGE }}:${{ github.sha }}
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -am "deploy: backend ${GITHUB_SHA::7}"
+          git diff --quiet || git commit -am "deploy: backend ${GITHUB_SHA::7}"
           git push
 
       - name: Sync ArgoCD
