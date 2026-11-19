@@ -44,14 +44,20 @@ jobs:
           token: ${{ secrets.DEPLOYMENT_REPO_TOKEN }}
           path: deployment
 
+      # 프론트엔드 배포와 겹쳐 push가 거절되면 최신 main 위에 다시 올린다
       - name: Update image tag
         working-directory: deployment/k8s
         run: |
           kustomize edit set image ${{ env.IMAGE }}=${{ env.IMAGE }}:${{ github.sha }}
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git diff --quiet || git commit -am "deploy: backend ${GITHUB_SHA::7}"
-          git push
+          git diff --quiet && exit 0
+          git commit -am "deploy: backend ${GITHUB_SHA::7}"
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase
+          done
+          exit 1
 
       - name: Sync ArgoCD
         env:
