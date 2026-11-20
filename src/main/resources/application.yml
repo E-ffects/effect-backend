@@ -24,6 +24,11 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
 
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 222MB
+
 jwt:
   access-token-ttl: 30m
   refresh-token-ttl: 7d
@@ -54,3 +59,13 @@ management:
       enabled: true
     livenessstate:
       enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+app:
+  clock:
+    fixed: "2025-12-31T09:00:00+09:00"

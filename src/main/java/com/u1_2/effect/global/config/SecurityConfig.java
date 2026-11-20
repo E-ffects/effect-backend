@@ -17,14 +17,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private static final String[] PUBLIC_POST = {"/auth/login", "/auth/signup", "/auth/reissue", "/auth/logout"};
-    private static final String[] PUBLIC_GET = {"/auth/check-username"};
     private static final String[] PUBLIC_ANY = {
             "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
             "/actuator/health/**",
@@ -38,6 +38,14 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        var paths = PathPatternRequestMatcher.withDefaults();
+        var publicAuthEndpoints = new OrRequestMatcher(
+                paths.matcher(HttpMethod.POST, "/auth/login"),
+                paths.matcher(HttpMethod.POST, "/auth/signup"),
+                paths.matcher(HttpMethod.POST, "/auth/reissue"),
+                paths.matcher(HttpMethod.POST, "/auth/logout"),
+                paths.matcher(HttpMethod.GET, "/auth/check-username"));
+
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
@@ -48,11 +56,10 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.POST, PUBLIC_POST).permitAll()
-                        .requestMatchers(HttpMethod.GET, PUBLIC_GET).permitAll()
+                        .requestMatchers(publicAuthEndpoints).permitAll()
                         .requestMatchers(PUBLIC_ANY).permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, errorResponseWriter),
+                .addFilterBefore(new JwtAuthenticationFilter(jwtProvider, errorResponseWriter, publicAuthEndpoints),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

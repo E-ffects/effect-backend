@@ -1,6 +1,7 @@
 package com.u1_2.effect.global.exception;
 
 import com.u1_2.effect.global.dto.ResponseDto;
+import com.u1_2.effect.rma.domain.RmaErrorCode;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @Slf4j
@@ -28,6 +30,12 @@ public class ApiExceptionHandler {
             log.warn("ApiException: {}", errorCode.getErrorCode());
         }
         return toResponse(errorCode);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ResponseDto<Void>> handleUploadSize(MaxUploadSizeExceededException e) {
+        log.warn("Multipart 파일 또는 요청 크기 초과");
+        return toResponse(RmaErrorCode.UNSUPPORTED_FILE);
     }
 
     /** @Valid 검증 실패: 응답은 한 줄, 필드별 상세는 로그에만 */

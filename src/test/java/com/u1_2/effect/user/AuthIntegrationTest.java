@@ -106,11 +106,45 @@ class AuthIntegrationTest {
 
     @Test
     void 아이디_중복_확인() throws Exception {
-        mockMvc.perform(get("/auth/check-username").param("username", "hong"))
+        mockMvc.perform(get("/auth/check-username").param("username", "hong")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer not.a.jwt"))
                 .andExpect(jsonPath("$.content.available").value(true));
         signup();
         mockMvc.perform(get("/auth/check-username").param("username", "hong"))
                 .andExpect(jsonPath("$.content.available").value(false));
+    }
+
+    @Test
+    void 로그인한_사용자의_정보를_조회한다() throws Exception {
+        signup().andExpect(status().isOk());
+        String body = login("hong", "Passw0rd!").andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String accessToken = JsonPath.read(body, "$.content.token");
+        Long userId = userRepository.findByUsername("hong").orElseThrow().getId();
+
+        mockMvc.perform(get("/api/auth/me").contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.content.id").value(Matchers.is(userId), Long.class))
+                .andExpect(jsonPath("$.content.username").value("hong"))
+                .andExpect(jsonPath("$.content.name").value("홍길동"))
+                .andExpect(jsonPath("$.content.role").value("QUALITY"))
+                .andExpect(jsonPath("$.content.role_label").value("품질관리자"))
+                .andExpect(jsonPath("$.content.password").doesNotExist());
+    }
+
+    @Test
+    void 현재_사용자_조회에는_Access_Token이_필요하다() throws Exception {
+        mockMvc.perform(get("/api/auth/me").contextPath("/api"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+        String refreshToken = jwtProvider.createRefreshToken(1L, Role.CS);
+        mockMvc.perform(get("/api/auth/me").contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
     }
 
     @Test

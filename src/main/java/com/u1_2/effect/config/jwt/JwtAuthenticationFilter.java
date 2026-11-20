@@ -17,6 +17,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -29,15 +30,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
-    private static final String AUTH_PATH_PREFIX = "/auth/";
-
     private final JwtProvider jwtProvider;
     private final ErrorResponseWriter errorResponseWriter;
+    private final RequestMatcher publicAuthEndpoints;
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI().substring(request.getContextPath().length());
-        return path.startsWith(AUTH_PATH_PREFIX);
+        // 로그인이나 토큰 재발급처럼 기존 액세스 토큰이 필요 없는 경로는 검사를 건너뜀
+        return publicAuthEndpoints.matches(request);
     }
 
     @Override
@@ -68,6 +68,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
+        // 검증된 사용자 번호와 권한을 컨트롤러의 @CurrentUser에서 꺼낼 수 있게 저장함
         AuthUser principal = new AuthUser(claims.userId(), claims.role());
         var authentication = new UsernamePasswordAuthenticationToken(
                 principal, null, List.of(new SimpleGrantedAuthority(claims.role().getAuthority())));
