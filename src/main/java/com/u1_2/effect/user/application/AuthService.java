@@ -54,6 +54,11 @@ public class AuthService {
         return !userRepository.existsByUsername(username);
     }
 
+    public User getCurrentUser(Long userId) {
+        // 토큰에서 확인한 사용자 번호로 최신 프로필 정보를 조회함
+        return userRepository.findByIdOrThrow(userId, AuthErrorCode.INVALID_TOKEN);
+    }
+
     public LoginResult login(LoginRequest request) {
         User user = userRepository.findByUsername(request.username())
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))

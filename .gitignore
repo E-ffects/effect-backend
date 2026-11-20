@@ -40,5 +40,8 @@ out/
 src/main/resources/application-local.yml
 .env
 
+# Local attachments
+/storage/attachments/
+
 ### oh-my-claudecode ###
 .omc/
