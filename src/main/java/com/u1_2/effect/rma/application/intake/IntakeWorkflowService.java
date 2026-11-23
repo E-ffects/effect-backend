@@ -11,6 +11,7 @@ import com.u1_2.effect.rma.presentation.dto.RmaIntakeResponse;
 import com.u1_2.effect.user.application.RoleAccess;
 import com.u1_2.effect.user.domain.Role;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 접수 저장 이후 분류 → QA 판정 → 분석 등록을 이어감. 단계마다 저장된 상태로 응답함.
  */
+@Slf4j
 @Service
 @Profile({"local", "test", "prod"})
 @RequiredArgsConstructor
@@ -36,7 +38,13 @@ public class IntakeWorkflowService {
         // 접수 저장을 먼저 커밋하고 새 접수일 때만 AI를 호출함
         var registration = registrationService.register(request, user, key);
         if (registration.created()) {
-            processIntake(registration.rmaId());
+            try {
+                processIntake(registration.rmaId());
+            } catch (RuntimeException e) {
+                // 접수는 이미 저장됐으므로 실패 상태로 응답하고 재처리 API로 이어가게 함
+                log.error("접수 처리 실패 rmaId={}", registration.rmaId(), e);
+                stateService.failUnexpected(registration.rmaId());
+            }
         }
         return stateService.response(registration.rmaId());
     }
@@ -48,7 +56,7 @@ public class IntakeWorkflowService {
         try {
             processIntake(rmaId);
         } catch (RuntimeException e) {
-            stateService.failRetry(rmaId);
+            stateService.failUnexpected(rmaId);
             throw e;
         }
         return stateService.response(rmaId);
