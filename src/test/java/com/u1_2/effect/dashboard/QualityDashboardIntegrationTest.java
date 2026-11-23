@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -30,6 +31,7 @@ class QualityDashboardIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired JwtProvider jwt;
+    @Autowired JdbcClient jdbc;
 
     @Test
     void 서울_기준_기간으로_KPI와_접수별_불량을_집계한다() throws Exception {
@@ -87,6 +89,23 @@ class QualityDashboardIntegrationTest {
         mvc.perform(request(Role.CS)).andExpect(status().isForbidden());
         mvc.perform(request(Role.QUALITY).param("from", "2025-12-31").param("to", "2025-12-01"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void 재발_판정이_확정되면_해당_시점부터_의심_KPI에서_제외한다() throws Exception {
+        jdbc.sql("""
+                INSERT INTO users (id, username, password, name, role, created_at, updated_at)
+                VALUES (1, 'dashboard-recurrence-qa', 'unused', '담당자', 'QUALITY', LOCALTIMESTAMP, LOCALTIMESTAMP)
+                """).update();
+        jdbc.sql("""
+                INSERT INTO app.rma_recurrence_decision (rma_id, decision, decided_by, decided_by_name, decided_at)
+                VALUES ('RMA-B', 'NEW', 1, '담당자', '2026-01-01T00:00:00+09:00')
+                """).update();
+        mvc.perform(request(Role.QUALITY)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.kpis.recurrence_suspected.value").value(1));
+        jdbc.sql("UPDATE app.rma_recurrence_decision SET decided_at = '2025-12-31T23:59:59+09:00'").update();
+        mvc.perform(request(Role.QUALITY)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.kpis.recurrence_suspected.value").value(0));
     }
 
     private MockHttpServletRequestBuilder request(Role role) {

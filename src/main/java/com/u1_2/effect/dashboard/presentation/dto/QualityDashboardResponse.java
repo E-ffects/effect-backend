@@ -35,6 +35,10 @@ public record QualityDashboardResponse(
             String investigationId, String title, String product, String defectType, String primaryCause,
             long count, long prevCount, String rmaId
     ) {
+        @JsonProperty("pattern_id")
+        public String patternId() {
+            return investigationId;
+        }
     }
 
     public record Priority(
@@ -42,6 +46,10 @@ public record QualityDashboardResponse(
             long count, long defectQty, long loss, String topSeverity, long prevCount, boolean highRisk,
             double score, String urgency, List<ScorePart> breakdown, String rmaId, List<String> evidence
     ) {
+        @JsonProperty("pattern_id")
+        public String patternId() {
+            return investigationId;
+        }
     }
 
     public record ScorePart(String key, String label, double weight, double score, String detail) {

@@ -1,6 +1,7 @@
 package com.u1_2.effect.rma.presentation.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.u1_2.effect.recurrence.domain.RecurrenceDecision;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -25,8 +26,15 @@ public record RmaDetailResponse(
         @JsonInclude(JsonInclude.Include.NON_NULL) String qaStatus,
         @JsonInclude(JsonInclude.Include.NON_NULL) String approvalStatus,
         String intakeState,
-        String analysisState
+        String analysisState,
+        @JsonInclude(JsonInclude.Include.NON_NULL) ReportStatus report,
+        @JsonInclude(JsonInclude.Include.NON_NULL) RecurrenceDecision recurrenceDecision,
+        @JsonInclude(JsonInclude.Include.NON_NULL) String decidedBy,
+        @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime decidedAt
 ) {
+    public record ReportStatus(boolean exists, boolean reviewed) {
+    }
+
     public record Customer(String customerId, String customerName, String industry) {
     }
 

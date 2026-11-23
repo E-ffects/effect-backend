@@ -7,15 +7,12 @@ import com.u1_2.effect.dashboard.presentation.dto.DashboardTrendResponse;
 import com.u1_2.effect.dashboard.presentation.dto.DashboardTrendResponse.Countermeasure;
 import com.u1_2.effect.dashboard.presentation.dto.DashboardTrendResponse.Point;
 import com.u1_2.effect.dashboard.presentation.dto.GetDashboardTrendRequest;
-import com.u1_2.effect.global.exception.ApiException;
-import com.u1_2.effect.global.exception.CommonErrorCode;
+import com.u1_2.effect.global.time.KoreaDateRange;
 import com.u1_2.effect.global.time.KoreaTime;
+import com.u1_2.effect.global.time.WeekRange;
 import com.u1_2.effect.user.application.RoleAccess;
 import com.u1_2.effect.user.domain.Role;
 import java.time.Clock;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -34,10 +31,8 @@ public class DashboardTrendService {
 
     public DashboardTrendResponse get(GetDashboardTrendRequest request, Role role) {
         RoleAccess.requireMember(role);
-        var period = DashboardPeriod.resolve(request.from(), request.to(), LocalDate.now(appClock.withZone(KoreaTime.ZONE)));
-        if (ChronoUnit.DAYS.between(period.from(), period.to()) > 366) {
-            throw new ApiException(CommonErrorCode.INVALID_INPUT);
-        }
+        var period = KoreaDateRange.resolve(request.from(), request.to(), KoreaTime.today(appClock));
+        period.requireAtMostDays(367);
         var filter = new Filter(period.start(), period.end(), optional(request.product()), optional(request.defectType()));
         var points = weeklyPoints(period, repository.findDailyCounts(filter));
 
@@ -48,18 +43,12 @@ public class DashboardTrendService {
         return new DashboardTrendResponse(points, markers);
     }
 
-    private List<Point> weeklyPoints(DashboardPeriod period, List<DailyCount> dailyCounts) {
+    private List<Point> weeklyPoints(KoreaDateRange period, List<DailyCount> dailyCounts) {
         var counts = dailyCounts.stream().collect(Collectors.toMap(DailyCount::day, DailyCount::count));
-        var points = new ArrayList<Point>();
-
-        // 선택 시작일부터 7일씩 묶고 접수가 없는 주도 0으로 남겨 차트 간격을 유지함
-        for (var from = period.from(); !from.isAfter(period.to()); from = from.plusDays(7)) {
-            var lastDay = from.plusDays(6);
-            var to = lastDay.isAfter(period.to()) ? period.to() : lastDay;
-            long count = from.datesUntil(to.plusDays(1)).mapToLong(day -> counts.getOrDefault(day, 0L)).sum();
-            points.add(new Point(from, to, from.getMonthValue() + "/" + from.getDayOfMonth(), count));
-        }
-        return points;
+        return WeekRange.between(period.from(), period.to()).stream()
+                .map(week -> new Point(week.from(), week.to(), week.label(),
+                        week.dates().mapToLong(day -> counts.getOrDefault(day, 0L)).sum()))
+                .toList();
     }
 
     private String optional(String value) {

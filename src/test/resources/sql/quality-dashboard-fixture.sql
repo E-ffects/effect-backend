@@ -2,7 +2,7 @@ CREATE SCHEMA IF NOT EXISTS pcb;
 CREATE TABLE pcb.rma_claim (rma_id TEXT PRIMARY KEY, reported_part_no TEXT, opened_at TEXT);
 CREATE TABLE pcb.rma_item (rma_item_id TEXT PRIMARY KEY, rma_id TEXT, verified_defect_qty INTEGER);
 CREATE TABLE pcb.loss_ledger (investigation_id TEXT, occurred_at TEXT, amount_krw BIGINT);
-CREATE TABLE pcb.investigation (investigation_id TEXT PRIMARY KEY, title TEXT, analysis_level TEXT);
+CREATE TABLE pcb.investigation (investigation_id TEXT PRIMARY KEY, title TEXT, analysis_level TEXT, status TEXT);
 CREATE TABLE pcb.investigation_claim (investigation_id TEXT, rma_id TEXT, linked_at TEXT);
 CREATE TABLE pcb.symptom_definition (minor_code TEXT PRIMARY KEY, major_name TEXT);
 CREATE TABLE pcb.symptom_assessment (assessment_id TEXT PRIMARY KEY, rma_item_id TEXT, primary_label TEXT, created_at TEXT);
@@ -33,7 +33,7 @@ INSERT INTO pcb.rma_claim VALUES
 INSERT INTO pcb.rma_item VALUES
     ('A1', 'RMA-A', 10), ('A2', 'RMA-A', 5), ('B1', 'RMA-B', 5), ('C1', 'RMA-C', NULL);
 
-INSERT INTO pcb.investigation VALUES ('INV-A', '납땜 불량 조사', 'L3'), ('INV-C', '회로 불량 조사', 'L2');
+INSERT INTO pcb.investigation VALUES ('INV-A', '납땜 불량 조사', 'L3', 'ANALYSIS'), ('INV-C', '회로 불량 조사', 'L2', 'CLOSED');
 
 -- 같은 RMA의 중복 연결과 동일 조사에 속한 기간 밖 접수도 들어 있음
 INSERT INTO pcb.investigation_claim VALUES

@@ -44,6 +44,12 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 - 로컬 첨부는 `./storage/attachments/{rma_id}/`에 저장합니다.
 - 로컬 업무 시각은 `app.clock.fixed` 기준인 `2025-12-31T09:00:00+09:00`입니다. 분석 조회 간격은 실제 경과 시간으로 계산합니다.
 
+## 관련 코드 위치
+
+- `rma/presentation/analysis`는 분석 등록·조회와 유사 사례 HTTP 경로를 담당합니다. `rma/presentation/communication`은 고객 회신과 처리 실행 경로를 담당합니다.
+- `investigation`은 품질 대시보드와 불량 패턴이 공유하는 접수 집계와 조사 순위를 담당합니다. 각 화면은 조회 결과를 자체 응답 형식으로 변환합니다.
+- `recurrence`, `report`, `alert`는 각각 조사 대책·재발, 보고서, 사용자별 알림 상태를 담당합니다. 서울 날짜 범위와 페이지 검증은 `global`에 있습니다.
+
 ## 구현된 API
 
 | 기능 | 경로 |
@@ -54,6 +60,10 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 | CS 대시보드 KPI | `GET /api/dashboard/cs` |
 | 품질 대시보드 KPI·불량 현황·조사 우선순위 | `GET /api/dashboard/quality` |
 | 품질 위젯 배치·주간 접수 추이 | `GET/PUT /api/dashboard/layout/quality`, `GET /api/dashboard/trend` |
+| 반복 불량 패턴·조사 근거 | `GET /api/patterns`, `GET /api/patterns/{patternId}` |
+| 조사별 대책·효과·재발 판정 이력 | `GET /api/recurrence/actions`, `GET /api/recurrence/actions/{actionId}/trend`, `GET /api/recurrence/reviews` |
+| 품질 알림과 개인 상태 | `GET /api/alerts`, `POST /api/alerts/{id}/read`, `POST /api/alerts/{id}/star`, `POST /api/alerts/read-all`, `POST /api/alerts/bulk-read`, `POST /api/alerts/bulk-delete`, `DELETE /api/alerts/{id}` |
+| RMA 보고서·패턴 요약 | `GET /api/reports`, `GET/POST/PUT /api/reports/{rmaId}`, `POST /api/reports/{rmaId}/draft`, `POST /api/reports/{rmaId}/replace`, `POST/DELETE /api/reports/{rmaId}/review`, `GET /api/dashboard/pattern-report/{patternId}` |
 | 접수·재처리 | `POST /api/intake`, `POST /api/rmas/{rmaId}/intake/retry` |
 | QA 판정 | `GET /api/triage-reviews`, `PUT /api/rmas/{rmaId}/triage` |
 | 분석·승인 목록 | `GET/POST /api/rmas/{rmaId}/analysis`, `GET /api/approvals` |
@@ -100,9 +110,34 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 - QUALITY 계정으로 `GET /api/dashboard/quality?from=2025-12-02&to=2025-12-31`을 호출합니다. 기간 규칙은 CS 대시보드와 같고, 비교 기준은 선택 기간 바로 앞의 같은 길이입니다.
 - `content.kpis`는 총 RMA, 반복 조사, 재발 의심, 추정 손실, 원인 확정률과 대책 효과율을 반환합니다. 추정 손실은 원장 발생일 기준입니다. 확정률·효과율에는 분자 `num`과 분모 `den`이 들어갑니다. 분모나 직전 값이 0이면 해당 비율 또는 증감률은 `null`입니다.
 - `defect_top5`의 `defect_type`은 목록의 `defectType` 필터에 바로 쓸 수 있는 불량 대분류입니다. `repeat_rank`는 기간 내 접수 2건 이상이 연결된 조사 목록입니다. `priority`는 조사별 가중 점수 상위 5건이며 손실 점수는 `pcb.loss_by_investigation.total_krw`로 계산합니다.
-- `repeat_rank`와 `priority` 항목은 `investigation_id`와 대표 `rma_id`를 반환합니다. `priority.evidence`에는 최신 근거 RMA가 최대 5건 들어갑니다. Vue에서 순위 행을 클릭하면 `rma_id`로 케이스 화면을 열 수 있습니다. 기존 `pattern_id` 링크와 위젯 이름은 프론트에서 조정이 필요합니다.
+- `repeat_rank`와 `priority` 항목은 `investigation_id`, 같은 값인 `pattern_id`, 대표 `rma_id`를 반환합니다. `pattern_id`로 불량 패턴 상세를, `rma_id`로 개별 케이스를 열 수 있습니다. `priority.evidence`에는 최신 근거 RMA가 최대 5건 들어갑니다.
 - 위젯 배치는 QUALITY 계정별로 저장합니다. 조회 시 `content.layout`과 `content.default`를 받습니다. 저장 시 위젯 네 개의 `id`, `width`, `hidden`을 배열로 보내며 배열 순서가 표시 순서입니다.
 - 추이 API는 `from`부터 7일씩 `points`를 생성하며 접수가 없는 주는 0건을 반환합니다. 제품과 불량 대분류로 필터링할 수 있습니다. 필터 옵션은 `/api/meta`의 `products[].code`와 `defect_types`를 사용합니다. 대책 시행 표시는 QUALITY에 제공됩니다.
+
+### 반복 불량 패턴
+
+- QUALITY 계정은 `GET /api/patterns?product=PCB-ECU6-A1`로 선택 기간에 접수 두 건 이상이 연결된 조사를 조회합니다. `content.patterns`에 순위, `content.causes`에 확정 원인 분포를 받습니다. 기본 기간은 서울 기준 최근 90일입니다.
+- `GET /api/patterns/{patternId}`에서 해당 조사의 근거 RMA, 제조 Lot·설비, 연결 대책과 선택 기간의 원장 손실을 조회합니다. `pattern_id`는 v5의 `investigation_id`입니다. 공정 실행 이력은 근거 RMA의 Lot에서 확인합니다.
+
+### 조사별 대책과 재발
+
+- QUALITY 계정은 `GET /api/recurrence/actions?investigation_id=INV-25-0001`로 조사 대책을 조회합니다. 목록은 `content.items`에서 읽으며 행 ID는 `corrective_action_id`입니다. `recurrence_count`는 대책·품목별 최신 판정에서 확정 재발한 RMA 수입니다.
+- `POST /api/recurrence/investigations/{investigationId}/actions`로 대책을 등록하고, `GET/PUT /api/recurrence/actions/{actionId}`로 개별 계획을 조회·수정합니다. 등록 재시도에 `Idempotency-Key`를 사용할 수 있습니다.
+- `POST /api/recurrence/actions/{actionId}/implement`는 시행일을 기록하고 효과 검증 대기로 전환합니다. 시행했거나 검증·재발 이력이 있는 대책의 계획은 잠깁니다.
+- `GET /api/recurrence/actions/{actionId}/trend`는 시행일 전후 주간 접수 추이와 `checks[]`의 지표별 전·목표·후 검증값을 반환합니다.
+- `GET /api/recurrence/reviews?corrective_action_id=CA-000001&verdict=RECURRENCE`로 품목의 재발 판정 이력을 조회합니다. 응답의 `rma_id`로 관련 접수 상세를 열 수 있습니다.
+- QUALITY는 `POST /api/rmas/{rmaId}/recurrence`에 `{"decision":"확산형 재발"}`처럼 보내 접수의 재발 여부를 확정합니다. 상세에서 최초 판정과 담당자를 조회할 수 있고, 같은 값으로 재요청하면 기존 판정을 반환합니다.
+
+### 품질 알림
+
+- 스케줄러가 `pcb`의 고위험 QA 판정과 재발 원인 검토 대기를 30초마다 읽고, 이벤트를 `app.alert`에 중복 없이 저장합니다. 읽음·즐겨찾기·숨김은 `app.alert_user_state`에 계정별로 저장합니다.
+- QUALITY는 `GET /api/alerts?limit=5`로 알림과 미확인 수를 읽고, `after_id`로 신규 ID를 조회할 수 있습니다. 알림의 `rma_id`나 `recur_id`로 케이스·대책 상세에 연결할 수 있습니다.
+
+### RMA 보고서
+
+- QUALITY는 완료 또는 부분 성공 분석이 저장된 접수에서 보고서를 생성할 수 있습니다. 원인 후보와 개선안·회신 초안은 저장된 분석에서 가져오며, DB에서 확인된 RMA만 근거 링크에 넣습니다. 생성한 보고서는 재요청 시 재사용합니다.
+- 이력은 `content.items`, 개별 본문은 `content.content`에서 읽습니다. 비교 초안은 별도로 만들고, 수정하거나 교체하면 기존 검토 확인이 초기화됩니다.
+- 품질 RMA 상세의 `report`는 저장·검토 여부를 반환합니다. 불량 패턴 화면의 요약은 조사와 대책에 등록된 사실을 표시합니다.
 
 ### 과거 유사 사례
 

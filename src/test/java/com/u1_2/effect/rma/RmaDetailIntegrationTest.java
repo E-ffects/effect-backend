@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
@@ -160,6 +162,7 @@ class RmaDetailIntegrationTest {
                 .andExpect(jsonPath("$.content.triage.decided_at").value("2025-11-20T12:41:37+09:00"))
                 .andExpect(jsonPath("$.content.qa_status").value("ANALYZING"))
                 .andExpect(jsonPath("$.content.analysis_state").value("SUCCEEDED"))
+                .andExpect(jsonPath("$.content.report.exists").value(false))
                 .andExpect(jsonPath("$.content.approval_status").value("WAITING"));
     }
 
@@ -173,6 +176,7 @@ class RmaDetailIntegrationTest {
                 .andExpect(jsonPath("$.content.triage.severity").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.content.triage.rationale").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.content.qa_status").doesNotHaveJsonPath())
+                .andExpect(jsonPath("$.content.report").doesNotHaveJsonPath())
                 .andExpect(jsonPath("$.content.approval_status").doesNotHaveJsonPath());
     }
 
@@ -197,6 +201,51 @@ class RmaDetailIntegrationTest {
         detail("RMA-99999", Role.QUALITY)
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("RMA_NOT_FOUND"));
+    }
+
+    @Test
+    void 재발_확정은_상세와_목록에_반영되고_다른_판정으로_덮어쓸_수_없다() throws Exception {
+        jdbcClient.sql("""
+                INSERT INTO users (id, username, password, name, role, created_at, updated_at)
+                VALUES (1, 'recurrence-qa', 'unused', '품질 검토자', 'QUALITY', LOCALTIMESTAMP, LOCALTIMESTAMP)
+                """).update();
+        decide("RMA-08927", "확산형 재발", Role.QUALITY)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.decision").value("확산형 재발"))
+                .andExpect(jsonPath("$.content.decided_at").value("2025-12-31T09:00:00+09:00"));
+        decide("RMA-08927", "SPREAD_RECURRENCE", Role.QUALITY).andExpect(status().isOk());
+        decide("RMA-08927", "신규", Role.QUALITY).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("RECURRENCE_ALREADY_DECIDED"));
+        detail("RMA-08927", Role.QUALITY)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.recurrence_decision").value("확산형 재발"))
+                .andExpect(jsonPath("$.content.decided_by").value("품질 검토자"));
+        detail("RMA-08927", Role.CS)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.recurrence_decision").doesNotHaveJsonPath());
+        mockMvc.perform(get("/api/rmas").contextPath("/api").param("q", "RMA-08927").param("recurrence", "RECURRENCE")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtProvider.createAccessToken(1L, Role.QUALITY)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.items[0].rma_id").value("RMA-08927"));
+
+        decide("RMA-10611", "신규", Role.QUALITY).andExpect(status().isOk());
+        mockMvc.perform(get("/api/rmas").contextPath("/api").param("q", "RMA-10611").param("recurrence", "NOT_APPLICABLE")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtProvider.createAccessToken(1L, Role.QUALITY)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.items[0].rma_id").value("RMA-10611"));
+    }
+
+    @Test
+    void 재발_확정에서_품질_권한과_잘못된_선택값과_없는_접수를_검증한다() throws Exception {
+        decide("RMA-08927", "재발", Role.CS).andExpect(status().isForbidden());
+        decide("RMA-08927", "미정", Role.QUALITY).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+        decide("RMA-99999", "신규", Role.QUALITY).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RMA_NOT_FOUND"));
+    }
+
+    private ResultActions decide(String rmaId, String decision, Role role) throws Exception {
+        return mockMvc.perform(post("/api/rmas/{rmaId}/recurrence", rmaId).contextPath("/api")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtProvider.createAccessToken(1L, role))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"decision\":\"%s\"}".formatted(decision)));
     }
 
     private ResultActions detail(String rmaId, Role role) throws Exception {

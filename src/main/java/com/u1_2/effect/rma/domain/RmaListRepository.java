@@ -31,10 +31,15 @@ public class RmaListRepository {
                        COALESCE(i.intake_state, 'ACCEPTED') AS intake_state,
                        COALESCE(a.analysis_state, 'NOT_REQUESTED') AS analysis_state,
                        COALESCE(d.approval_status, 'NOT_REQUIRED') AS approval_status,
-                       COALESCE(r.verdict, a.result_json #>> '{recurrence_check,status}') AS recurrence_verdict
+                       COALESCE(CASE rd.decision
+                                   WHEN 'NEW' THEN 'NOT_APPLICABLE'
+                                   WHEN 'RECURRENCE' THEN 'RECURRENCE'
+                                   WHEN 'SPREAD_RECURRENCE' THEN 'RECURRENCE' END,
+                                r.verdict, a.result_json #>> '{recurrence_check,status}') AS recurrence_verdict
                 FROM pcb.rma_claim c
                 JOIN pcb.customer u ON u.customer_id = c.customer_id
                 LEFT JOIN app.intake i ON i.rma_id = c.rma_id
+                LEFT JOIN app.rma_recurrence_decision rd ON rd.rma_id = c.rma_id
                 LEFT JOIN (
                     SELECT rma_id, sum(claimed_defect_qty)::bigint AS claimed_defect_qty
                     FROM pcb.rma_item GROUP BY rma_id
