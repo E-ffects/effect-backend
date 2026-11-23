@@ -2,6 +2,7 @@ package com.u1_2.effect.rma;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -14,6 +15,9 @@ import com.u1_2.effect.config.jwt.JwtProvider;
 import com.u1_2.effect.rma.application.review.CauseRefreshService;
 import com.u1_2.effect.user.domain.Role;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -135,6 +139,36 @@ class CauseDecisionIntegrationTest {
         assertThat(refreshStatus("ana-refresh")).isEqualTo("FAILED");
         assertThat(jdbc.sql("SELECT approval_status FROM app.cause_decision WHERE analysis_id = 'ana-refresh'")
                 .query(String.class).single()).isEqualTo("APPROVED");
+    }
+
+    @Test
+    void 사례_갱신_중에는_판정_행을_잠그지_않고_그사이_판정이_다시_저장되면_이전_결과로_덮어쓰지_않는다() throws Exception {
+        String rmaId = seed("refresh-stale", "L3");
+        decide(rmaId, "ana-refresh-stale", "APPROVED", "OL_ETCH_RESIDUE", Role.QUALITY).andExpect(status().isOk());
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            entered.countDown();
+            release.await(5, TimeUnit.SECONDS);
+            return true;
+        }).when(aiClient).refreshCase(any());
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var refreshing = executor.submit(() -> refresh.refresh("ana-refresh-stale"));
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            jdbc.sql("SELECT 1 FROM app.cause_decision WHERE analysis_id = 'ana-refresh-stale' FOR UPDATE NOWAIT")
+                    .query(Integer.class).single();
+            // 판정을 다시 저장하면 갱신 예약이 새로 잡힘
+            jdbc.sql("""
+                    UPDATE app.cause_decision SET refresh_status = 'PENDING', next_refresh_at = CURRENT_TIMESTAMP
+                    WHERE analysis_id = 'ana-refresh-stale'
+                    """).update();
+            release.countDown();
+            refreshing.get();
+        }
+        assertThat(refreshStatus("ana-refresh-stale")).isEqualTo("PENDING");
+        assertThat(jdbc.sql("SELECT refresh_attempts FROM app.cause_decision WHERE analysis_id = 'ana-refresh-stale'")
+                .query(Integer.class).single()).isZero();
     }
 
     @Test

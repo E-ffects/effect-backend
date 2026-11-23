@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -39,7 +40,9 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -571,6 +574,66 @@ class IntakeRegistrationIntegrationTest {
         var approved = seedApproval("api-reanalysis-locked", "L3", "APPROVED");
         reanalysis(approved.rmaId(), Role.QUALITY).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CAUSE_ALREADY_DECIDED"));
+    }
+
+    @Test
+    void 분석_조회_중에는_DB_잠금을_쥐지_않고_그사이_종료된_분석에는_늦은_응답을_저장하지_않는다() throws Exception {
+        var analysis = startAnalysis("poll-boundary", RAW_TEXT);
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            entered.countDown();
+            release.await(5, TimeUnit.SECONDS);
+            return invocation.callRealMethod();
+        }).when(aiClient).getAnalysis(analysis.analysisId());
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var polling = executor.submit(() -> pollNow(analysis.analysisId()));
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            // AI 응답을 기다리는 동안 다른 요청이 같은 행을 바로 잠글 수 있음
+            jdbcClient.sql("SELECT 1 FROM app.ai_analysis WHERE analysis_id = :id FOR UPDATE NOWAIT")
+                    .param("id", analysis.analysisId()).query(Integer.class).single();
+            jdbcClient.sql("""
+                    UPDATE app.ai_analysis SET analysis_state = 'FAILED', completed_at = CURRENT_TIMESTAMP
+                    WHERE analysis_id = :id
+                    """).param("id", analysis.analysisId()).update();
+            release.countDown();
+            polling.get();
+        }
+        assertThat(jdbcClient.sql("SELECT analysis_state FROM app.ai_analysis WHERE analysis_id = :id")
+                .param("id", analysis.analysisId()).query(String.class).single()).isEqualTo("FAILED");
+    }
+
+    @Test
+    void 분석_등록_중에는_RMA_잠금을_쥐지_않고_등록이_실패하면_선점을_풀어_다시_등록할_수_있다() throws Exception {
+        var previous = seedApproval("register-boundary", "L3", "REJECTED");
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            entered.countDown();
+            release.await(5, TimeUnit.SECONDS);
+            throw new ApiException(AiErrorCode.AI_UNAVAILABLE);
+        }).doCallRealMethod().when(aiClient)
+                .registerAnalysis(argThat(input -> input != null && input.rmaId().equals(previous.rmaId())));
+
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            var failed = executor.submit(() -> reanalysis(previous.rmaId(), Role.QUALITY)
+                    .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value("AI_UNAVAILABLE")));
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            jdbcClient.sql("SELECT 1 FROM pcb.rma_claim WHERE rma_id = :id FOR UPDATE NOWAIT")
+                    .param("id", previous.rmaId()).query(Integer.class).single();
+            assertThat(registrationLeases(previous.rmaId())).isEqualTo(1);
+            release.countDown();
+            failed.get();
+        }
+        assertThat(registrationLeases(previous.rmaId())).isZero();
+        reanalysis(previous.rmaId(), Role.QUALITY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.analysis_state").value("QUEUED"));
+    }
+
+    private long registrationLeases(String rmaId) {
+        return jdbcClient.sql("SELECT COUNT(*) FROM app.analysis_registration WHERE rma_id = :id")
+                .param("id", rmaId).query(Long.class).single();
     }
 
     private ResultActions reanalysis(String rmaId, Role role) throws Exception {
