@@ -1,0 +1,50 @@
+[
+ {
+  "rma_id": "RMA-08927",
+  "note": "차량 L3, 공정 원인(외층 에칭 잔동)과 검사 유출 (명세 예시, v4의 RMA-08743과 같은 유형)",
+  "classify_status": "CLASSIFIED",
+  "triage_level": "L3",
+  "triage_provisional": false,
+  "analysis_status": "SUCCEEDED"
+ },
+ {
+  "rma_id": "RMA-08996",
+  "note": "차량 L2, 자재 원인(동박 표면 처리)",
+  "classify_status": "CLASSIFIED",
+  "triage_level": "L2",
+  "triage_provisional": false,
+  "analysis_status": "SUCCEEDED"
+ },
+ {
+  "rma_id": "RMA-07436",
+  "note": "반도체 L2, 공정 원인(디스미어)과 장비",
+  "classify_status": "CLASSIFIED",
+  "triage_level": "L2",
+  "triage_provisional": false,
+  "analysis_status": "SUCCEEDED"
+ },
+ {
+  "rma_id": "RMA-07208",
+  "note": "반도체 L1, 단발 원인(취급 스크래치), 장비 특정 불가",
+  "classify_status": "CLASSIFIED",
+  "triage_level": "L1",
+  "triage_provisional": false,
+  "analysis_status": "SUCCEEDED"
+ },
+ {
+  "rma_id": "RMA-07936",
+  "note": "정보 부족 접수 (외관 NG만 기재) → 재질의",
+  "classify_status": "INSUFFICIENT_INFO",
+  "triage_level": "L2",
+  "triage_provisional": true,
+  "analysis_status": null
+ },
+ {
+  "rma_id": "RMA-08218",
+  "note": "재발 사건(디스미어 부족 재발, 다른 장비 DSM-01)",
+  "classify_status": "CLASSIFIED",
+  "triage_level": "L2",
+  "triage_provisional": false,
+  "analysis_status": "SUCCEEDED"
+ }
+]

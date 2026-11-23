@@ -1,0 +1,2042 @@
+{
+ "rma_id": "RMA-07436",
+ "note": "반도체 L2, 공정 원인(디스미어)과 장비",
+ "claim": {
+  "rma_id": "RMA-07436",
+  "customer_id": "S07",
+  "customer_name": "고객사 S07(스토리지 EMS)",
+  "industry": "SEMICONDUCTOR",
+  "opened_at": "2025-10-08T08:58:51+09:00",
+  "raw_text": "[불량 통보] S07 P/N PCB-SSD8H-E3 (Lot LT-00980, D/C 2524) 차량·현장 회수품에서 오픈 불량이 반복해서 검출됩니다. 투입 1,150pcs 중 14pcs 불량입니다. 불량 샘플 6pcs 회송 예정입니다. 원인 분석 및 대책서 회신 부탁드립니다.",
+  "reported_part_no": "PCB-SSD8H-E3",
+  "reported_lot_no": "LT-00980",
+  "detection_stage": "FIELD",
+  "input_qty": 1150,
+  "claimed_defect_qty": 14
+ },
+ "classify": {
+  "status": "CLASSIFIED",
+  "major_code": "ELEC",
+  "major_name": "전기적 불량",
+  "minor_code": "ELEC01",
+  "minor_name": "오픈(단선)",
+  "confidence": 0.99,
+  "evidence_spans": [
+   "차량·현장 회수품에서 오픈 불량이 반복해서 검출됩니다."
+  ],
+  "severity": 8,
+  "characteristic_symbol": null,
+  "alternatives": [],
+  "follow_up_questions": [],
+  "elapsed_ms": 1254,
+  "model_version": "cs-classifier-0.1+llm",
+  "warnings": []
+ },
+ "triage": {
+  "rma_id": "RMA-07436",
+  "minor_code": "ELEC01",
+  "customer_industry": "SEMICONDUCTOR",
+  "severity": 8,
+  "characteristic_id": null,
+  "characteristic_symbol": null,
+  "repeat_signal": 0,
+  "analysis_level": "L2",
+  "needs_approval": false,
+  "approval_reasons": [],
+  "provisional": false,
+  "rationale": "불량 형태 오픈(단선), 심각도 8, 고객 SEMICONDUCTOR → L2",
+  "as_of": "2025-10-08T13:29:09+09:00"
+ },
+ "analysis": {
+  "rma_id": "RMA-07436",
+  "as_of": "2025-10-08T13:29:09+09:00",
+  "mode": "B",
+  "status": "SUCCEEDED",
+  "result": {
+   "classification": {
+    "major_code": "ELEC",
+    "minor_code": "ELEC01",
+    "minor_name": "오픈(단선)",
+    "evidence_spans": [
+     "오픈 불량이 반복해서 검출됩니다"
+    ]
+   },
+   "qa_review": {
+    "severity": 8,
+    "characteristic_symbol": null,
+    "analysis_level": "L2",
+    "needs_approval": false,
+    "approval_reasons": [],
+    "candidate_checks": [
+     {
+      "rank": 1,
+      "cause_code": "DESMEAR_INSUFFICIENT",
+      "evidence_status": "PARTIAL",
+      "satisfied": [
+       "같은 원인 확정 사례",
+       "생산 기록 근거 (DSM-02 약품조 교체: 과망간산 용액 처리 면적 2,100㎡에서 교체(권장 1,500㎡))",
+       "비교 시료 시험 1건"
+      ],
+      "missing": [
+       "출처 확인된 반송품 시험 (결과 대기)"
+      ],
+      "requirement": "반송품 단면 ICD 확인 + 디스미어율 측정 기록 + 동일 설비 기간 보관 시료 비교. 고객 측 측정값은 시료 출처·측정 조건이 확인된 경우에만 근거로 사용한다."
+     },
+     {
+      "rank": 2,
+      "cause_code": "HANDLING_SCRATCH",
+      "evidence_status": "PARTIAL",
+      "satisfied": [
+       "같은 원인 확정 사례",
+       "비교 시료 시험 1건"
+      ],
+      "missing": [
+       "생산 기록 근거 (외층 노광·현상 조건 이탈·설비·자재 기록)",
+       "출처 확인된 반송품 시험 (결과 대기)"
+      ],
+      "requirement": "반송품 현미경 스크래치 위치 + 설비 가이드 롤러 점검 기록. 고객 측 측정값은 시료 출처·측정 조건이 확인된 경우에만 근거로 사용한다."
+     },
+     {
+      "rank": 3,
+      "cause_code": "ET_RETEST_MISJUDGE",
+      "evidence_status": "INSUFFICIENT",
+      "satisfied": [
+       "같은 원인 확정 사례"
+      ],
+      "missing": [
+       "생산 기록 근거 (전기검사(E-Test) 조건 이탈·설비·자재 기록)",
+       "출처 확인된 반송품 시험 (결과 대기)"
+      ],
+      "requirement": "반송품 E-Test 재검 + 해당 패널 E-Test 이력(재검·판정 변경 로그). 고객 측 측정값은 시료 출처·측정 조건이 확인된 경우에만 근거로 사용한다."
+     }
+    ],
+    "review_note": "1순위 디스미어 부족은 같은 원인 확정 사례와 생산 기록 근거, 비교 시료 시험 1건이 있어 유력하나, 출처 확인된 반송품 시험 결과가 없어 확정 근거는 부족합니다. 2·3순위와 비교해도 1순위가 가장 근거가 많지만, 2순위 취급 스크래치와 3순위 E-Test 재검 판정 오처리는 생산 기록 근거와 반송품 시험이 더 부족합니다. 반송품 시험 결과와 출처 확인 후 QA에서 확정하겠습니다."
+   },
+   "trace_summary": {
+    "lot_id": "LT-00980",
+    "spec_id": "SEMI-SSD8H",
+    "part_no": "PCB-SSD8H-E3"
+   },
+   "cause_candidates": [
+    {
+     "cause_code": "DESMEAR_INSUFFICIENT",
+     "cause_name": "디스미어 부족",
+     "cause_category": "PROCESS",
+     "process_id": "DESMEAR",
+     "process_name": "디스미어·무전해 동도금",
+     "equipment_id": "DSM-02",
+     "score": 0.88,
+     "explanation": "이 후보가 1순위인 이유는 같은 제품의 최근 반품에서 디스미어 부족이 확정되었고, 과거 오픈(단선) 반품 546건 중 224건이 디스미어 부족이기 때문입니다. 이 Lot에서도 DSM-02 약품조 교체 이력이 있으며, 과망간산 용액 처리 면적이 2,100㎡로 권장 1,500㎡보다 많아 공정 부담이 있었던 점이 근거가 됩니다. 다만 이 Lot의 공정 이상이 직접 확인된 기록은 없습니다.",
+     "evidence": [
+      {
+       "type": "SIMILAR_CASE",
+       "summary": "RMA-06850 (2025-09-24, 같은 제품) → 디스미어 부족, DSM-02, 확정",
+       "ref_table": "rma_claim",
+       "ref_id": "RMA-06850",
+       "occurred_at": "2025-09-24T08:52:28+09:00"
+      },
+      {
+       "type": "SIMILAR_CASE",
+       "summary": "과거 오픈(단선) 반품 546건 중 224건이 디스미어 부족",
+       "ref_table": "cause_assessment",
+       "ref_id": "DESMEAR_INSUFFICIENT",
+       "occurred_at": null
+      },
+      {
+       "type": "EQUIPMENT_EVENT",
+       "summary": "DSM-02 약품조 교체: 과망간산 용액 처리 면적 2,100㎡에서 교체(권장 1,500㎡)",
+       "ref_table": "equipment_event",
+       "ref_id": "BATH_CHANGE@DSM-02",
+       "occurred_at": "2025-06-27T16:23:53+09:00"
+      }
+     ],
+     "other_equipment": [],
+     "rank": 1,
+     "status": "PROPOSED",
+     "source": "AI"
+    },
+    {
+     "cause_code": "HANDLING_SCRATCH",
+     "cause_name": "취급 스크래치",
+     "cause_category": "PROCESS",
+     "process_id": "OL_IMG",
+     "process_name": "외층 노광·현상",
+     "equipment_id": "OLI-02",
+     "score": 0.19,
+     "explanation": "이 후보는 같은 제품의 최근 반품에서 취급 스크래치가 추정되었고, 과거 오픈(단선) 반품 546건 중 209건이 취급 스크래치였기 때문에 상위 후보로 보입니다. 다만 같은 제품 최근 사례는 확정이 아니었고, 이 Lot의 공정 기록에서도 취급 스크래치로 연결되는 설비 이벤트는 확인되지 않았습니다.",
+     "evidence": [
+      {
+       "type": "SIMILAR_CASE",
+       "summary": "RMA-05768 (2025-08-16, 같은 제품) → 취급 스크래치, 장비 특정 불가, 추정",
+       "ref_table": "rma_claim",
+       "ref_id": "RMA-05768",
+       "occurred_at": "2025-08-16T15:29:05+09:00"
+      },
+      {
+       "type": "SIMILAR_CASE",
+       "summary": "과거 오픈(단선) 반품 546건 중 209건이 취급 스크래치",
+       "ref_table": "cause_assessment",
+       "ref_id": "HANDLING_SCRATCH",
+       "occurred_at": null
+      }
+     ],
+     "other_equipment": [],
+     "rank": 2,
+     "status": "PROPOSED",
+     "source": "AI"
+    },
+    {
+     "cause_code": "ET_RETEST_MISJUDGE",
+     "cause_name": "E-Test 재검 판정 오처리",
+     "cause_category": "INSPECTION",
+     "process_id": "ET",
+     "process_name": "전기검사(E-Test)",
+     "equipment_id": null,
+     "score": 0.18,
+     "explanation": "이 후보는 같은 제품의 최근 반품에서 E-Test 재검 판정 오처리가 추정되었고, 과거 오픈(단선) 반품 546건 중 95건이 해당 원인이어서 후보에 올랐습니다. 다만 비율과 건수가 앞선 후보들보다 낮고, 이 Lot의 전기검사 공정에서 재검 판정 오처리를 뒷받침하는 공정 신호나 설비 이벤트는 확인된 기록이 없습니다.",
+     "evidence": [
+      {
+       "type": "SIMILAR_CASE",
+       "summary": "RMA-03818 (2025-07-02, 같은 제품) → E-Test 재검 판정 오처리, 장비 특정 불가, 추정",
+       "ref_table": "rma_claim",
+       "ref_id": "RMA-03818",
+       "occurred_at": "2025-07-02T18:47:22+09:00"
+      },
+      {
+       "type": "SIMILAR_CASE",
+       "summary": "과거 오픈(단선) 반품 546건 중 95건이 E-Test 재검 판정 오처리",
+       "ref_table": "cause_assessment",
+       "ref_id": "ET_RETEST_MISJUDGE",
+       "occurred_at": null
+      }
+     ],
+     "other_equipment": [],
+     "rank": 3,
+     "status": "PROPOSED",
+     "source": "AI"
+    }
+   ],
+   "escape_candidates": [
+    {
+     "escape_code": "ESC_FQC_SAMPLING",
+     "escape_name": "샘플링 빈도·수량 부족",
+     "detection_process_id": "FQC",
+     "equipment_id": "FQC-01",
+     "summary": "과거 같은 원인 조사 1건에서 확인된 유출 원인입니다.",
+     "evidence": []
+    }
+   ],
+   "candidate_lots": {
+    "window_hours": 24,
+    "total": 81,
+    "items": [
+     {
+      "lot_id": "LT-00970",
+      "spec_id": "AUTO-ECU6",
+      "started_at": "2025-06-05T13:52:49+09:00",
+      "completed_at": "2025-06-14T07:26:38+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DESMEAR",
+        "process_name": "디스미어·무전해 동도금",
+        "equipment_id": "DSM-02",
+        "this_lot_at": "2025-06-08T16:53:09+09:00",
+        "other_lot_at": "2025-06-08T13:15:26+09:00",
+        "gap_hours": 3.6
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_ETCH",
+        "process_name": "내층 에칭·박리",
+        "equipment_id": "ILE-02",
+        "this_lot_at": "2025-06-07T05:36:28+09:00",
+        "other_lot_at": "2025-06-06T05:48:11+09:00",
+        "gap_hours": 23.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-02",
+        "this_lot_at": "2025-06-08T00:20:59+09:00",
+        "other_lot_at": "2025-06-07T10:39:10+09:00",
+        "gap_hours": 13.7
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DRILL",
+        "process_name": "드릴링",
+        "equipment_id": "DRL-03",
+        "this_lot_at": "2025-06-08T07:36:26+09:00",
+        "other_lot_at": "2025-06-07T23:30:25+09:00",
+        "gap_hours": 8.1
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-03",
+        "this_lot_at": "2025-06-09T03:07:11+09:00",
+        "other_lot_at": "2025-06-08T21:28:00+09:00",
+        "gap_hours": 5.7
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OL_ETCH",
+        "process_name": "외층 에칭",
+        "equipment_id": "OLE-01",
+        "this_lot_at": "2025-06-09T21:36:23+09:00",
+        "other_lot_at": "2025-06-09T16:46:11+09:00",
+        "gap_hours": 4.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SM",
+        "process_name": "PSR(솔더레지스트) 인쇄·경화",
+        "equipment_id": "SMR-02",
+        "this_lot_at": "2025-06-10T14:47:03+09:00",
+        "other_lot_at": "2025-06-10T12:50:42+09:00",
+        "gap_hours": 1.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-02",
+        "this_lot_at": "2025-06-11T00:43:51+09:00",
+        "other_lot_at": "2025-06-11T02:13:38+09:00",
+        "gap_hours": 1.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-01",
+        "this_lot_at": "2025-06-11T01:02:03+09:00",
+        "other_lot_at": "2025-06-11T04:28:23+09:00",
+        "gap_hours": 3.4
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T03:12:45+09:00",
+        "other_lot_at": "2025-06-13T18:44:14+09:00",
+        "gap_hours": 15.5
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       }
+      ],
+      "shared_count": 12,
+      "matches_top_cause": true,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T08:33:14+09:00",
+      "shipped_boards": 2613,
+      "known_returns": 0
+     },
+     {
+      "lot_id": "LT-00974",
+      "spec_id": "SEMI-SSD8H",
+      "started_at": "2025-06-05T19:40:46+09:00",
+      "completed_at": "2025-06-14T01:46:55+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DESMEAR",
+        "process_name": "디스미어·무전해 동도금",
+        "equipment_id": "DSM-02",
+        "this_lot_at": "2025-06-08T16:53:09+09:00",
+        "other_lot_at": "2025-06-08T18:31:18+09:00",
+        "gap_hours": 1.6
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-03",
+        "this_lot_at": "2025-06-09T03:07:11+09:00",
+        "other_lot_at": "2025-06-09T00:25:47+09:00",
+        "gap_hours": 2.7
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-09T01:36:50+09:00",
+        "gap_hours": 3.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OL_IMG",
+        "process_name": "외층 노광·현상",
+        "equipment_id": "OLI-02",
+        "this_lot_at": "2025-06-09T15:49:31+09:00",
+        "other_lot_at": "2025-06-09T11:59:25+09:00",
+        "gap_hours": 3.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OL_ETCH",
+        "process_name": "외층 에칭",
+        "equipment_id": "OLE-01",
+        "this_lot_at": "2025-06-09T21:36:23+09:00",
+        "other_lot_at": "2025-06-09T18:57:32+09:00",
+        "gap_hours": 2.6
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SM",
+        "process_name": "PSR(솔더레지스트) 인쇄·경화",
+        "equipment_id": "SMR-02",
+        "this_lot_at": "2025-06-10T14:47:03+09:00",
+        "other_lot_at": "2025-06-10T16:16:17+09:00",
+        "gap_hours": 1.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-02",
+        "this_lot_at": "2025-06-11T00:43:51+09:00",
+        "other_lot_at": "2025-06-11T09:51:48+09:00",
+        "gap_hours": 9.1
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-01",
+        "this_lot_at": "2025-06-11T01:02:03+09:00",
+        "other_lot_at": "2025-06-11T11:49:09+09:00",
+        "gap_hours": 10.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "CLEAN",
+        "process_name": "최종 세척·건조",
+        "equipment_id": "CLN-02",
+        "this_lot_at": "2025-06-11T22:43:37+09:00",
+        "other_lot_at": "2025-06-12T09:45:21+09:00",
+        "gap_hours": 11.0
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       }
+      ],
+      "shared_count": 11,
+      "matches_top_cause": true,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T08:40:41+09:00",
+      "shipped_boards": 4795,
+      "known_returns": 30
+     },
+     {
+      "lot_id": "LT-00969",
+      "spec_id": "AUTO-ECU6",
+      "started_at": "2025-06-05T09:01:26+09:00",
+      "completed_at": "2025-06-13T13:09:09+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DESMEAR",
+        "process_name": "디스미어·무전해 동도금",
+        "equipment_id": "DSM-02",
+        "this_lot_at": "2025-06-08T16:53:09+09:00",
+        "other_lot_at": "2025-06-08T01:54:37+09:00",
+        "gap_hours": 15.0
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-02",
+        "this_lot_at": "2025-06-08T00:20:59+09:00",
+        "other_lot_at": "2025-06-07T03:32:45+09:00",
+        "gap_hours": 20.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-03",
+        "this_lot_at": "2025-06-09T03:07:11+09:00",
+        "other_lot_at": "2025-06-08T07:52:41+09:00",
+        "gap_hours": 19.2
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-08T08:25:41+09:00",
+        "gap_hours": 20.7
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OL_ETCH",
+        "process_name": "외층 에칭",
+        "equipment_id": "OLE-01",
+        "this_lot_at": "2025-06-09T21:36:23+09:00",
+        "other_lot_at": "2025-06-09T08:46:26+09:00",
+        "gap_hours": 12.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-02",
+        "this_lot_at": "2025-06-11T00:43:51+09:00",
+        "other_lot_at": "2025-06-10T14:59:40+09:00",
+        "gap_hours": 9.7
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-01",
+        "this_lot_at": "2025-06-11T01:02:03+09:00",
+        "other_lot_at": "2025-06-10T14:40:36+09:00",
+        "gap_hours": 10.4
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "CLEAN",
+        "process_name": "최종 세척·건조",
+        "equipment_id": "CLN-02",
+        "this_lot_at": "2025-06-11T22:43:37+09:00",
+        "other_lot_at": "2025-06-11T15:36:06+09:00",
+        "gap_hours": 7.1
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T03:12:45+09:00",
+        "other_lot_at": "2025-06-13T01:17:11+09:00",
+        "gap_hours": 1.9
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CU_FOIL-A-00790",
+        "material_type": "CU_FOIL",
+        "supplier_id": "SUP-CU-A"
+       }
+      ],
+      "shared_count": 11,
+      "matches_top_cause": true,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T09:42:54+09:00",
+      "shipped_boards": 1511,
+      "known_returns": 0
+     },
+     {
+      "lot_id": "LT-00979",
+      "spec_id": "SEMI-MEM10",
+      "started_at": "2025-06-06T19:14:39+09:00",
+      "completed_at": "2025-06-15T03:23:10+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DESMEAR",
+        "process_name": "디스미어·무전해 동도금",
+        "equipment_id": "DSM-02",
+        "this_lot_at": "2025-06-08T16:53:09+09:00",
+        "other_lot_at": "2025-06-09T15:20:22+09:00",
+        "gap_hours": 22.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_IMG",
+        "process_name": "내층 D/F 라미·노광·현상",
+        "equipment_id": "ILI-02",
+        "this_lot_at": "2025-06-07T00:35:20+09:00",
+        "other_lot_at": "2025-06-07T03:04:12+09:00",
+        "gap_hours": 2.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-02",
+        "this_lot_at": "2025-06-08T00:20:59+09:00",
+        "other_lot_at": "2025-06-08T14:14:36+09:00",
+        "gap_hours": 13.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-01",
+        "this_lot_at": "2025-06-08T01:28:59+09:00",
+        "other_lot_at": "2025-06-08T13:43:31+09:00",
+        "gap_hours": 12.2
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DRILL",
+        "process_name": "드릴링",
+        "equipment_id": "DRL-03",
+        "this_lot_at": "2025-06-08T07:36:26+09:00",
+        "other_lot_at": "2025-06-09T00:39:58+09:00",
+        "gap_hours": 17.1
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-03",
+        "this_lot_at": "2025-06-09T03:07:11+09:00",
+        "other_lot_at": "2025-06-10T01:39:09+09:00",
+        "gap_hours": 22.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OL_IMG",
+        "process_name": "외층 노광·현상",
+        "equipment_id": "OLI-02",
+        "this_lot_at": "2025-06-09T15:49:31+09:00",
+        "other_lot_at": "2025-06-10T13:16:11+09:00",
+        "gap_hours": 21.4
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-DRY_FILM-A-00891",
+        "material_type": "DRY_FILM",
+        "supplier_id": "SUP-DF-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       }
+      ],
+      "shared_count": 10,
+      "matches_top_cause": true,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T14:22:57+09:00",
+      "shipped_boards": 1300,
+      "known_returns": 16
+     },
+     {
+      "lot_id": "LT-00977",
+      "spec_id": "AUTO-BMS4H",
+      "started_at": "2025-06-06T16:10:58+09:00",
+      "completed_at": "2025-06-14T15:38:22+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DESMEAR",
+        "process_name": "디스미어·무전해 동도금",
+        "equipment_id": "DSM-02",
+        "this_lot_at": "2025-06-08T16:53:09+09:00",
+        "other_lot_at": "2025-06-09T04:25:30+09:00",
+        "gap_hours": 11.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_IMG",
+        "process_name": "내층 D/F 라미·노광·현상",
+        "equipment_id": "ILI-02",
+        "this_lot_at": "2025-06-07T00:35:20+09:00",
+        "other_lot_at": "2025-06-06T23:47:06+09:00",
+        "gap_hours": 0.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_ETCH",
+        "process_name": "내층 에칭·박리",
+        "equipment_id": "ILE-02",
+        "this_lot_at": "2025-06-07T05:36:28+09:00",
+        "other_lot_at": "2025-06-07T06:23:34+09:00",
+        "gap_hours": 0.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-01",
+        "this_lot_at": "2025-06-08T01:28:59+09:00",
+        "other_lot_at": "2025-06-08T00:12:03+09:00",
+        "gap_hours": 1.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-09T11:45:05+09:00",
+        "gap_hours": 6.6
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SM",
+        "process_name": "PSR(솔더레지스트) 인쇄·경화",
+        "equipment_id": "SMR-02",
+        "this_lot_at": "2025-06-10T14:47:03+09:00",
+        "other_lot_at": "2025-06-11T00:07:44+09:00",
+        "gap_hours": 9.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T05:35:41+09:00",
+        "other_lot_at": "2025-06-14T04:14:43+09:00",
+        "gap_hours": 22.7
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-DRY_FILM-A-00891",
+        "material_type": "DRY_FILM",
+        "supplier_id": "SUP-DF-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       }
+      ],
+      "shared_count": 9,
+      "matches_top_cause": true,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T10:40:52+09:00",
+      "shipped_boards": 1342,
+      "known_returns": 0
+     },
+     {
+      "lot_id": "LT-00971",
+      "spec_id": "AUTO-BMS4H",
+      "started_at": "2025-06-05T08:21:36+09:00",
+      "completed_at": "2025-06-13T17:49:41+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DESMEAR",
+        "process_name": "디스미어·무전해 동도금",
+        "equipment_id": "DSM-02",
+        "this_lot_at": "2025-06-08T16:53:09+09:00",
+        "other_lot_at": "2025-06-08T02:41:59+09:00",
+        "gap_hours": 14.2
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-02",
+        "this_lot_at": "2025-06-08T00:20:59+09:00",
+        "other_lot_at": "2025-06-07T02:05:38+09:00",
+        "gap_hours": 22.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-03",
+        "this_lot_at": "2025-06-09T03:07:11+09:00",
+        "other_lot_at": "2025-06-08T14:13:15+09:00",
+        "gap_hours": 12.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "CLEAN",
+        "process_name": "최종 세척·건조",
+        "equipment_id": "CLN-02",
+        "this_lot_at": "2025-06-11T22:43:37+09:00",
+        "other_lot_at": "2025-06-12T01:40:20+09:00",
+        "gap_hours": 2.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T03:12:45+09:00",
+        "other_lot_at": "2025-06-13T08:17:39+09:00",
+        "gap_hours": 5.1
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CU_FOIL-A-00790",
+        "material_type": "CU_FOIL",
+        "supplier_id": "SUP-CU-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       }
+      ],
+      "shared_count": 7,
+      "matches_top_cause": true,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T08:37:23+09:00",
+      "shipped_boards": 1755,
+      "known_returns": 0
+     },
+     {
+      "lot_id": "LT-00964",
+      "spec_id": "AUTO-BMS4H",
+      "started_at": "2025-06-04T14:25:11+09:00",
+      "completed_at": "2025-06-14T04:06:06+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DESMEAR",
+        "process_name": "디스미어·무전해 동도금",
+        "equipment_id": "DSM-02",
+        "this_lot_at": "2025-06-08T16:53:09+09:00",
+        "other_lot_at": "2025-06-07T17:27:38+09:00",
+        "gap_hours": 23.4
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-08T07:42:55+09:00",
+        "gap_hours": 21.4
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OL_IMG",
+        "process_name": "외층 노광·현상",
+        "equipment_id": "OLI-02",
+        "this_lot_at": "2025-06-09T15:49:31+09:00",
+        "other_lot_at": "2025-06-08T16:46:43+09:00",
+        "gap_hours": 23.0
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SM",
+        "process_name": "PSR(솔더레지스트) 인쇄·경화",
+        "equipment_id": "SMR-02",
+        "this_lot_at": "2025-06-10T14:47:03+09:00",
+        "other_lot_at": "2025-06-10T03:21:40+09:00",
+        "gap_hours": 11.4
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "ROUT",
+        "process_name": "외형 가공(라우팅)",
+        "equipment_id": "RTR-01",
+        "this_lot_at": "2025-06-11T12:10:46+09:00",
+        "other_lot_at": "2025-06-11T10:54:51+09:00",
+        "gap_hours": 1.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T03:12:45+09:00",
+        "other_lot_at": "2025-06-13T13:14:46+09:00",
+        "gap_hours": 10.0
+       }
+      ],
+      "shared_count": 6,
+      "matches_top_cause": true,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T08:37:23+09:00",
+      "shipped_boards": 1884,
+      "known_returns": 0
+     },
+     {
+      "lot_id": "LT-00975",
+      "spec_id": "SEMI-SSD8H",
+      "started_at": "2025-06-05T20:18:51+09:00",
+      "completed_at": "2025-06-14T08:48:40+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_IMG",
+        "process_name": "내층 D/F 라미·노광·현상",
+        "equipment_id": "ILI-02",
+        "this_lot_at": "2025-06-07T00:35:20+09:00",
+        "other_lot_at": "2025-06-06T01:43:53+09:00",
+        "gap_hours": 22.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_ETCH",
+        "process_name": "내층 에칭·박리",
+        "equipment_id": "ILE-02",
+        "this_lot_at": "2025-06-07T05:36:28+09:00",
+        "other_lot_at": "2025-06-06T15:13:59+09:00",
+        "gap_hours": 14.4
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-02",
+        "this_lot_at": "2025-06-08T00:20:59+09:00",
+        "other_lot_at": "2025-06-07T20:05:37+09:00",
+        "gap_hours": 4.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DRILL",
+        "process_name": "드릴링",
+        "equipment_id": "DRL-03",
+        "this_lot_at": "2025-06-08T07:36:26+09:00",
+        "other_lot_at": "2025-06-08T07:17:22+09:00",
+        "gap_hours": 0.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-09T03:31:31+09:00",
+        "gap_hours": 1.6
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OL_IMG",
+        "process_name": "외층 노광·현상",
+        "equipment_id": "OLI-02",
+        "this_lot_at": "2025-06-09T15:49:31+09:00",
+        "other_lot_at": "2025-06-09T10:36:54+09:00",
+        "gap_hours": 5.2
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SM",
+        "process_name": "PSR(솔더레지스트) 인쇄·경화",
+        "equipment_id": "SMR-02",
+        "this_lot_at": "2025-06-10T14:47:03+09:00",
+        "other_lot_at": "2025-06-10T14:16:09+09:00",
+        "gap_hours": 0.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-02",
+        "this_lot_at": "2025-06-11T00:43:51+09:00",
+        "other_lot_at": "2025-06-11T07:24:00+09:00",
+        "gap_hours": 6.7
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-01",
+        "this_lot_at": "2025-06-11T01:02:03+09:00",
+        "other_lot_at": "2025-06-11T07:42:14+09:00",
+        "gap_hours": 6.7
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T03:12:45+09:00",
+        "other_lot_at": "2025-06-13T22:36:31+09:00",
+        "gap_hours": 19.4
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       }
+      ],
+      "shared_count": 11,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T08:56:29+09:00",
+      "shipped_boards": 5202,
+      "known_returns": 4
+     },
+     {
+      "lot_id": "LT-00976",
+      "spec_id": "AUTO-ECU6",
+      "started_at": "2025-06-06T08:25:51+09:00",
+      "completed_at": "2025-06-14T11:08:23+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-01",
+        "this_lot_at": "2025-06-08T01:28:59+09:00",
+        "other_lot_at": "2025-06-07T15:37:01+09:00",
+        "gap_hours": 9.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DRILL",
+        "process_name": "드릴링",
+        "equipment_id": "DRL-03",
+        "this_lot_at": "2025-06-08T07:36:26+09:00",
+        "other_lot_at": "2025-06-08T02:25:06+09:00",
+        "gap_hours": 5.2
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-03",
+        "this_lot_at": "2025-06-09T03:07:11+09:00",
+        "other_lot_at": "2025-06-08T21:50:13+09:00",
+        "gap_hours": 5.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-08T22:34:11+09:00",
+        "gap_hours": 6.6
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OL_ETCH",
+        "process_name": "외층 에칭",
+        "equipment_id": "OLE-01",
+        "this_lot_at": "2025-06-09T21:36:23+09:00",
+        "other_lot_at": "2025-06-09T20:37:52+09:00",
+        "gap_hours": 1.0
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-02",
+        "this_lot_at": "2025-06-11T00:43:51+09:00",
+        "other_lot_at": "2025-06-11T12:46:39+09:00",
+        "gap_hours": 12.0
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-01",
+        "this_lot_at": "2025-06-11T01:02:03+09:00",
+        "other_lot_at": "2025-06-11T13:25:27+09:00",
+        "gap_hours": 12.4
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T03:12:45+09:00",
+        "other_lot_at": "2025-06-14T00:28:43+09:00",
+        "gap_hours": 21.3
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CU_FOIL-A-00790",
+        "material_type": "CU_FOIL",
+        "supplier_id": "SUP-CU-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       }
+      ],
+      "shared_count": 11,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T15:49:11+09:00",
+      "shipped_boards": 1799,
+      "known_returns": 0
+     },
+     {
+      "lot_id": "LT-00972",
+      "spec_id": "AUTO-RADAR8",
+      "started_at": "2025-06-05T08:05:53+09:00",
+      "completed_at": "2025-06-13T14:34:23+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-02",
+        "this_lot_at": "2025-06-08T00:20:59+09:00",
+        "other_lot_at": "2025-06-07T09:35:11+09:00",
+        "gap_hours": 14.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-01",
+        "this_lot_at": "2025-06-08T01:28:59+09:00",
+        "other_lot_at": "2025-06-07T10:35:37+09:00",
+        "gap_hours": 14.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "DRILL",
+        "process_name": "드릴링",
+        "equipment_id": "DRL-03",
+        "this_lot_at": "2025-06-08T07:36:26+09:00",
+        "other_lot_at": "2025-06-08T01:05:28+09:00",
+        "gap_hours": 6.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-03",
+        "this_lot_at": "2025-06-09T03:07:11+09:00",
+        "other_lot_at": "2025-06-08T22:18:53+09:00",
+        "gap_hours": 4.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-08T21:14:31+09:00",
+        "gap_hours": 7.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OL_ETCH",
+        "process_name": "외층 에칭",
+        "equipment_id": "OLE-01",
+        "this_lot_at": "2025-06-09T21:36:23+09:00",
+        "other_lot_at": "2025-06-09T14:55:15+09:00",
+        "gap_hours": 6.7
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SM",
+        "process_name": "PSR(솔더레지스트) 인쇄·경화",
+        "equipment_id": "SMR-02",
+        "this_lot_at": "2025-06-10T14:47:03+09:00",
+        "other_lot_at": "2025-06-10T09:29:09+09:00",
+        "gap_hours": 5.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-02",
+        "this_lot_at": "2025-06-11T00:43:51+09:00",
+        "other_lot_at": "2025-06-10T20:16:50+09:00",
+        "gap_hours": 4.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-01",
+        "this_lot_at": "2025-06-11T01:02:03+09:00",
+        "other_lot_at": "2025-06-10T19:38:49+09:00",
+        "gap_hours": 5.4
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T03:12:45+09:00",
+        "other_lot_at": "2025-06-13T04:43:33+09:00",
+        "gap_hours": 1.5
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       }
+      ],
+      "shared_count": 11,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-14T10:58:26+09:00",
+      "shipped_boards": 2858,
+      "known_returns": 12
+     },
+     {
+      "lot_id": "LT-00978",
+      "spec_id": "AUTO-RADAR8",
+      "started_at": "2025-06-06T09:48:19+09:00",
+      "completed_at": "2025-06-14T16:06:23+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-01",
+        "this_lot_at": "2025-06-08T01:28:59+09:00",
+        "other_lot_at": "2025-06-07T23:34:57+09:00",
+        "gap_hours": 1.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-09T03:50:43+09:00",
+        "gap_hours": 1.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-02",
+        "this_lot_at": "2025-06-11T00:43:51+09:00",
+        "other_lot_at": "2025-06-11T10:45:18+09:00",
+        "gap_hours": 10.0
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-01",
+        "this_lot_at": "2025-06-11T01:02:03+09:00",
+        "other_lot_at": "2025-06-11T11:16:48+09:00",
+        "gap_hours": 10.2
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T05:35:41+09:00",
+        "other_lot_at": "2025-06-14T04:19:01+09:00",
+        "gap_hours": 22.7
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PREPREG-B180-00733",
+        "material_type": "PREPREG",
+        "supplier_id": "SUP-PP-B"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CU_FOIL-A-00790",
+        "material_type": "CU_FOIL",
+        "supplier_id": "SUP-CU-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       }
+      ],
+      "shared_count": 8,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T08:48:08+09:00",
+      "shipped_boards": 2843,
+      "known_returns": 7
+     },
+     {
+      "lot_id": "LT-00973",
+      "spec_id": "SEMI-MEM10",
+      "started_at": "2025-06-05T07:48:28+09:00",
+      "completed_at": "2025-06-12T13:25:02+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-03",
+        "this_lot_at": "2025-06-09T03:07:11+09:00",
+        "other_lot_at": "2025-06-08T04:42:18+09:00",
+        "gap_hours": 22.4
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-08T05:19:30+09:00",
+        "gap_hours": 23.8
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SM",
+        "process_name": "PSR(솔더레지스트) 인쇄·경화",
+        "equipment_id": "SMR-02",
+        "this_lot_at": "2025-06-10T14:47:03+09:00",
+        "other_lot_at": "2025-06-09T14:56:02+09:00",
+        "gap_hours": 23.9
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-02",
+        "this_lot_at": "2025-06-11T00:43:51+09:00",
+        "other_lot_at": "2025-06-10T03:43:10+09:00",
+        "gap_hours": 21.0
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CU_FOIL-A-00790",
+        "material_type": "CU_FOIL",
+        "supplier_id": "SUP-CU-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       }
+      ],
+      "shared_count": 7,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-13T08:43:12+09:00",
+      "shipped_boards": 778,
+      "known_returns": 1
+     },
+     {
+      "lot_id": "LT-00982",
+      "spec_id": "AUTO-ECU6",
+      "started_at": "2025-06-07T07:29:58+09:00",
+      "completed_at": "2025-06-15T17:35:05+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_ETCH",
+        "process_name": "내층 에칭·박리",
+        "equipment_id": "ILE-02",
+        "this_lot_at": "2025-06-07T05:36:28+09:00",
+        "other_lot_at": "2025-06-07T20:47:28+09:00",
+        "gap_hours": 15.2
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OXIDE",
+        "process_name": "브라운옥사이드(산화) 처리",
+        "equipment_id": "OXD-02",
+        "this_lot_at": "2025-06-07T18:35:21+09:00",
+        "other_lot_at": "2025-06-08T17:27:12+09:00",
+        "gap_hours": 22.9
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CU_FOIL-A-00790",
+        "material_type": "CU_FOIL",
+        "supplier_id": "SUP-CU-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-DRY_FILM-A-00891",
+        "material_type": "DRY_FILM",
+        "supplier_id": "SUP-DF-A"
+       }
+      ],
+      "shared_count": 6,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-17T18:39:12+09:00",
+      "shipped_boards": 2589,
+      "known_returns": 0
+     },
+     {
+      "lot_id": "LT-00985",
+      "spec_id": "SEMI-MEM10",
+      "started_at": "2025-06-07T10:29:23+09:00",
+      "completed_at": "2025-06-16T05:03:55+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_IMG",
+        "process_name": "내층 D/F 라미·노광·현상",
+        "equipment_id": "ILI-02",
+        "this_lot_at": "2025-06-07T00:35:20+09:00",
+        "other_lot_at": "2025-06-07T14:24:11+09:00",
+        "gap_hours": 13.8
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CU_FOIL-A-00790",
+        "material_type": "CU_FOIL",
+        "supplier_id": "SUP-CU-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-DRY_FILM-A-00891",
+        "material_type": "DRY_FILM",
+        "supplier_id": "SUP-DF-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       }
+      ],
+      "shared_count": 5,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-17T08:42:15+09:00",
+      "shipped_boards": 1297,
+      "known_returns": 1
+     },
+     {
+      "lot_id": "LT-00987",
+      "spec_id": "IND-CTRL4",
+      "started_at": "2025-06-07T08:26:09+09:00",
+      "completed_at": "2025-06-16T03:25:53+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_IMG",
+        "process_name": "내층 D/F 라미·노광·현상",
+        "equipment_id": "ILI-02",
+        "this_lot_at": "2025-06-07T00:35:20+09:00",
+        "other_lot_at": "2025-06-07T15:47:29+09:00",
+        "gap_hours": 15.2
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_ETCH",
+        "process_name": "내층 에칭·박리",
+        "equipment_id": "ILE-02",
+        "this_lot_at": "2025-06-07T05:36:28+09:00",
+        "other_lot_at": "2025-06-07T23:52:19+09:00",
+        "gap_hours": 18.3
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "OXIDE",
+        "process_name": "브라운옥사이드(산화) 처리",
+        "equipment_id": "OXD-02",
+        "this_lot_at": "2025-06-07T18:35:21+09:00",
+        "other_lot_at": "2025-06-08T15:49:09+09:00",
+        "gap_hours": 21.2
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-DRY_FILM-A-00891",
+        "material_type": "DRY_FILM",
+        "supplier_id": "SUP-DF-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       }
+      ],
+      "shared_count": 5,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-17T17:06:51+09:00",
+      "shipped_boards": 2086,
+      "known_returns": 0
+     },
+     {
+      "lot_id": "LT-00984",
+      "spec_id": "AUTO-RADAR8",
+      "started_at": "2025-06-07T16:10:59+09:00",
+      "completed_at": "2025-06-15T22:00:37+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_IMG",
+        "process_name": "내층 D/F 라미·노광·현상",
+        "equipment_id": "ILI-02",
+        "this_lot_at": "2025-06-07T00:35:20+09:00",
+        "other_lot_at": "2025-06-07T19:29:03+09:00",
+        "gap_hours": 18.9
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CCL-A180-00180",
+        "material_type": "CCL",
+        "supplier_id": "SUP-CCL-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PREPREG-B180-00733",
+        "material_type": "PREPREG",
+        "supplier_id": "SUP-PP-B"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-DRY_FILM-A-00891",
+        "material_type": "DRY_FILM",
+        "supplier_id": "SUP-DF-A"
+       }
+      ],
+      "shared_count": 5,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-18T08:31:21+09:00",
+      "shipped_boards": 3481,
+      "known_returns": 37
+     },
+     {
+      "lot_id": "LT-00965",
+      "spec_id": "AUTO-RADAR8",
+      "started_at": "2025-06-04T09:43:06+09:00",
+      "completed_at": "2025-06-13T08:06:30+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PACK",
+        "process_name": "베이킹·진공 포장",
+        "equipment_id": "PCK-02",
+        "this_lot_at": "2025-06-13T03:12:45+09:00",
+        "other_lot_at": "2025-06-12T19:06:18+09:00",
+        "gap_hours": 8.1
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CCL-A180-00180",
+        "material_type": "CCL",
+        "supplier_id": "SUP-CCL-A"
+       }
+      ],
+      "shared_count": 4,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-14T08:58:26+09:00",
+      "shipped_boards": 3162,
+      "known_returns": 3
+     },
+     {
+      "lot_id": "LT-00981",
+      "spec_id": "IND-CTRL4",
+      "started_at": "2025-06-06T20:10:22+09:00",
+      "completed_at": "2025-06-15T04:12:35+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "IL_ETCH",
+        "process_name": "내층 에칭·박리",
+        "equipment_id": "ILE-02",
+        "this_lot_at": "2025-06-07T05:36:28+09:00",
+        "other_lot_at": "2025-06-07T13:47:16+09:00",
+        "gap_hours": 8.2
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "LAM",
+        "process_name": "적층 프레스(정렬·접합)",
+        "equipment_id": "PRS-02",
+        "this_lot_at": "2025-06-08T00:20:59+09:00",
+        "other_lot_at": "2025-06-08T21:52:20+09:00",
+        "gap_hours": 21.5
+       },
+       {
+        "type": "EQUIPMENT",
+        "process_id": "PLATE",
+        "process_name": "전해 동도금",
+        "equipment_id": "PLT-01",
+        "this_lot_at": "2025-06-09T05:07:44+09:00",
+        "other_lot_at": "2025-06-10T03:02:20+09:00",
+        "gap_hours": 21.9
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-DRY_FILM-A-00891",
+        "material_type": "DRY_FILM",
+        "supplier_id": "SUP-DF-A"
+       }
+      ],
+      "shared_count": 4,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-16T12:20:50+09:00",
+      "shipped_boards": 1287,
+      "known_returns": 0
+     },
+     {
+      "lot_id": "LT-00967",
+      "spec_id": "SEMI-SSD8H",
+      "started_at": "2025-06-04T07:34:08+09:00",
+      "completed_at": "2025-06-12T09:22:50+09:00",
+      "shared": [
+       {
+        "type": "EQUIPMENT",
+        "process_id": "SF",
+        "process_name": "표면처리",
+        "equipment_id": "ENIG-01",
+        "this_lot_at": "2025-06-11T01:02:03+09:00",
+        "other_lot_at": "2025-06-10T01:12:23+09:00",
+        "gap_hours": 23.8
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PSR_INK-A-00936",
+        "material_type": "PSR_INK",
+        "supplier_id": "SUP-INK-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CCL-A180-00180",
+        "material_type": "CCL",
+        "supplier_id": "SUP-CCL-A"
+       }
+      ],
+      "shared_count": 4,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-13T11:21:37+09:00",
+      "shipped_boards": 4028,
+      "known_returns": 33
+     },
+     {
+      "lot_id": "LT-00986",
+      "spec_id": "SEMI-SSD8H",
+      "started_at": "2025-06-07T15:02:59+09:00",
+      "completed_at": "2025-06-16T08:09:47+09:00",
+      "shared": [
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-CCL-A180-00180",
+        "material_type": "CCL",
+        "supplier_id": "SUP-CCL-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-DRY_FILM-A-00891",
+        "material_type": "DRY_FILM",
+        "supplier_id": "SUP-DF-A"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-PREPREG-B180-00733",
+        "material_type": "PREPREG",
+        "supplier_id": "SUP-PP-B"
+       },
+       {
+        "type": "MATERIAL",
+        "material_lot_id": "ML-SF_CHEM-A-01025",
+        "material_type": "SF_CHEM",
+        "supplier_id": "SUP-CHEM-A"
+       }
+      ],
+      "shared_count": 4,
+      "matches_top_cause": false,
+      "shipped": true,
+      "first_shipped_at": "2025-06-17T16:28:50+09:00",
+      "shipped_boards": 5279,
+      "known_returns": 61
+     }
+    ]
+   },
+   "recurrence_check": {
+    "status": "PRE_ACTION_PRODUCT",
+    "corrective_action": {
+     "corrective_action_id": "CA-000023",
+     "investigation_id": "INV-25-0009",
+     "description": "DSM-02 과망간산 용액 교체 기준(처리 면적 1,500㎡) 적용",
+     "implemented_at": "2025-07-30T02:35:44+09:00",
+     "scope": {
+      "equipment": [
+       "DSM-02"
+      ]
+     }
+    },
+    "checks": {
+     "cause_code": "DESMEAR_INSUFFICIENT",
+     "cause_name": "디스미어 부족",
+     "cause_match": true,
+     "symptom_confirmed": true,
+     "lot_id": "LT-00980",
+     "lot_started_at": "2025-06-06T16:14:47+09:00",
+     "produced_after_action": false,
+     "in_action_scope": true
+    },
+    "reason": "Lot LT-00980은 조치 CA-000023(2025-07-30 시행) 전에 생산된 제품입니다. 재발이 아니라 조치 전 생산품의 반품입니다.",
+    "suggestion": "조치 전 생산품"
+   },
+   "similar_cases": [
+    {
+     "rma_id": "RMA-03018",
+     "opened_at": "2025-06-04T08:33:40+09:00",
+     "claim_date": "2025-06-04",
+     "minor_code": "ELEC01",
+     "minor_name": "오픈(단선)",
+     "cause_code": "HANDLING_SCRATCH",
+     "cause_name": "취급 스크래치",
+     "process_id": "OL_IMG",
+     "equipment_id": "OLI-02",
+     "certainty": "CONFIRMED",
+     "similarity": 0.59,
+     "basis": "같은 증상+같은 제품+같은 설비(OLI-02)+같은 고객+문장 유사",
+     "past_action": "외층 컨베이어 가이드 롤러 교체 및 취급 표준 개정",
+     "recurrence": false,
+     "days_to_resolve": 14,
+     "snippet": "[불량 통보] S07 P/N PCB-SSD8H-E3 (Lot LT-00784, D/C 2518) ICT·기능…",
+     "corrective_actions": [
+      {
+       "category": "INSPECTION",
+       "description": "AOI 레시피 변경 승인 절차 및 결함 검출력 검증 필수화",
+       "implemented_at": "2025-06-10T18:49:06+09:00"
+      },
+      {
+       "category": "PROCESS_EQUIPMENT",
+       "description": "외층 컨베이어 가이드 롤러 교체 및 취급 표준 개정",
+       "implemented_at": "2025-06-09T10:15:51+09:00"
+      }
+     ]
+    },
+    {
+     "rma_id": "RMA-03308",
+     "opened_at": "2025-06-16T09:29:08+09:00",
+     "claim_date": "2025-06-16",
+     "minor_code": "ELEC01",
+     "minor_name": "오픈(단선)",
+     "cause_code": "HANDLING_SCRATCH",
+     "cause_name": "취급 스크래치",
+     "process_id": "OL_IMG",
+     "equipment_id": "OLI-02",
+     "certainty": "CONFIRMED",
+     "similarity": 0.59,
+     "basis": "같은 증상+같은 제품+같은 설비(OLI-02)+문장 유사",
+     "past_action": "외층 컨베이어 가이드 롤러 교체 및 취급 표준 개정",
+     "recurrence": false,
+     "days_to_resolve": 10,
+     "snippet": "S05 SMT 품질 담당입니다. P/N PCB-SSD8H-E3 (Lot LT-00811, D/C 2519) …",
+     "corrective_actions": [
+      {
+       "category": "INSPECTION",
+       "description": "AOI 레시피 변경 승인 절차 및 결함 검출력 검증 필수화",
+       "implemented_at": "2025-06-10T18:49:06+09:00"
+      },
+      {
+       "category": "PROCESS_EQUIPMENT",
+       "description": "외층 컨베이어 가이드 롤러 교체 및 취급 표준 개정",
+       "implemented_at": "2025-06-09T10:15:51+09:00"
+      }
+     ]
+    },
+    {
+     "rma_id": "RMA-00253",
+     "opened_at": "2025-01-20T18:39:32+09:00",
+     "claim_date": "2025-01-20",
+     "minor_code": "ELEC01",
+     "minor_name": "오픈(단선)",
+     "cause_code": "ET_RETEST_MISJUDGE",
+     "cause_name": "E-Test 재검 판정 오처리",
+     "process_id": "ET",
+     "equipment_id": null,
+     "certainty": "PROBABLE",
+     "similarity": 0.56,
+     "basis": "같은 증상+같은 제품+문장 유사",
+     "past_action": "재검 판정 수기 변경 금지·2인 확인 적용",
+     "recurrence": false,
+     "days_to_resolve": 74,
+     "snippet": "S05 수입검사 담당입니다. P/N PCB-SSD8H-E3 (Lot LT-00237, D/C 2501) SM…",
+     "corrective_actions": [
+      {
+       "category": "INSPECTION",
+       "description": "재검 판정 수기 변경 금지·2인 확인 적용",
+       "implemented_at": "2025-04-12T08:34:59+09:00"
+      }
+     ]
+    },
+    {
+     "rma_id": "RMA-02630",
+     "opened_at": "2025-05-21T08:31:31+09:00",
+     "claim_date": "2025-05-21",
+     "minor_code": "ELEC01",
+     "minor_name": "오픈(단선)",
+     "cause_code": "HANDLING_SCRATCH",
+     "cause_name": "취급 스크래치",
+     "process_id": "OL_IMG",
+     "equipment_id": "OLI-02",
+     "certainty": "CONFIRMED",
+     "similarity": 0.55,
+     "basis": "같은 증상+같은 제품+같은 설비(OLI-02)+문장 유사",
+     "past_action": "외층 컨베이어 가이드 롤러 교체 및 취급 표준 개정",
+     "recurrence": false,
+     "days_to_resolve": 7,
+     "snippet": "긴급 품질 이슈 공유드립니다(S05). P/N PCB-SSD8H-E3 (Lot LT-00811, D/C 25…",
+     "corrective_actions": [
+      {
+       "category": "INSPECTION",
+       "description": "AOI 레시피 변경 승인 절차 및 결함 검출력 검증 필수화",
+       "implemented_at": "2025-06-10T18:49:06+09:00"
+      },
+      {
+       "category": "PROCESS_EQUIPMENT",
+       "description": "외층 컨베이어 가이드 롤러 교체 및 취급 표준 개정",
+       "implemented_at": "2025-06-09T10:15:51+09:00"
+      }
+     ]
+    },
+    {
+     "rma_id": "RMA-05173",
+     "opened_at": "2025-07-31T08:56:55+09:00",
+     "claim_date": "2025-07-31",
+     "minor_code": "ELEC01",
+     "minor_name": "오픈(단선)",
+     "cause_code": "DESMEAR_INSUFFICIENT",
+     "cause_name": "디스미어 부족",
+     "process_id": "DESMEAR",
+     "equipment_id": "DSM-02",
+     "certainty": "CONFIRMED",
+     "similarity": 0.54,
+     "basis": "같은 증상+같은 제품+같은 설비(DSM-02)+문장 유사",
+     "past_action": "DSM-02 과망간산 용액 교체 기준(처리 면적 1,500㎡) 적용",
+     "recurrence": false,
+     "days_to_resolve": 19,
+     "snippet": "[불량 통보] S06 P/N PCB-SSD8H-E3 (Lot LT-00974, D/C 2524) ICT·기능…",
+     "corrective_actions": [
+      {
+       "category": "PROCESS_EQUIPMENT",
+       "description": "DSM-02 과망간산 용액 교체 기준(처리 면적 1,500㎡) 적용",
+       "implemented_at": "2025-07-30T02:35:44+09:00"
+      },
+      {
+       "category": "SYSTEM",
+       "description": "PFMEA '디스미어 부족' 발생도·검출도 재평가, 유사 설비·제품 수평 전개",
+       "implemented_at": "2025-08-18T07:42:02+09:00"
+      },
+      {
+       "category": "INSPECTION",
+       "description": "해당 특성 샘플 시험 Lot별 실시로 환원",
+       "implemented_at": "2025-07-28T04:12:46+09:00"
+      }
+     ]
+    }
+   ],
+   "drafts": {
+    "customer_reply": "S07 품질 담당자님, PCB-SSD8H-E3 Lot LT-00980의 오픈(단선) 불량 접수 확인했습니다. 현재는 디스미어·무전해 동도금 공정의 디스미어 부족을 유력 원인으로 보고 확인 중입니다. 회송해 주시는 시료로 분석을 진행하며, 동일 Lot 재고는 출하 보류 후 선별 검토하겠습니다. 확인 결과는 정리되는 대로 회신드리겠습니다.",
+    "improvement": {
+     "process": [
+      {
+       "cause_code": "DESMEAR_INSUFFICIENT",
+       "action": "DSM-02의 디스미어 용액 수명 관리를 Lot 기준으로 강화하고, 처리 면적 기준에 따라 교체가 지켜지도록 관리해 주십시오. 또한 디스미어율을 Lot별로 측정하여 디스미어 부족이 반복되지 않도록 관리해 주십시오.",
+       "standard_action": "디스미어 용액 수명 관리(처리 면적 기준 교체) 및 디스미어율 Lot별 측정",
+       "owner_dept": "공정기술팀"
+      }
+     ],
+     "inspection": [
+      {
+       "escape_code": "ESC_FQC_SAMPLING",
+       "action": "FQC-01에서는 해당 특성의 샘플 시험을 Lot별로 실시하도록 환원해 주십시오. 샘플링 빈도와 수량이 부족하지 않도록 Lot 단위로 확인하는 기준으로 관리해 주십시오.",
+       "standard_action": "해당 특성 샘플 시험 Lot별 실시로 환원"
+      }
+     ]
+    },
+    "service_action": {
+     "action_type": "SORTING_SUPPORT_AND_CREDIT",
+     "action_name": "선별 지원·대금 공제",
+     "board_qty": 14,
+     "basis": "유사 사례 5건 중 3건이 선별 지원·대금 공제",
+     "similar_case_count": 5,
+     "expected_days": 8,
+     "expected_days_basis": "유사 사례 처리 결정→실행 3건의 중앙값",
+     "alternatives": [
+      {
+       "action_type": "CREDIT_NOTE",
+       "action_name": "대금 공제",
+       "count": 1
+      },
+      {
+       "action_type": "REPLACEMENT_SHIPMENT",
+       "action_name": "대체품 출하",
+       "count": 1
+      }
+     ]
+    }
+   }
+  },
+  "trace": [
+   {
+    "step": 1,
+    "agent": "ORCHESTRATOR",
+    "action": "as_of 고정, CS 분류 결과(ELEC01) 수신",
+    "tools": [
+     "claim",
+     "intake"
+    ],
+    "llm_used": false,
+    "elapsed_ms": 6
+   },
+   {
+    "step": 2,
+    "agent": "QA",
+    "action": "분석 수준 판정 L2 (불량 형태 오픈(단선), 심각도 8, 고객 SEMICONDUCTOR → L2)",
+    "tools": [
+     "triage_rules"
+    ],
+    "llm_used": false,
+    "elapsed_ms": 4
+   },
+   {
+    "step": 3,
+    "agent": "MANUFACTURING",
+    "action": "Lot LT-00980 추적: 공정 27단계 (이상 신호 LAM, LAM, DESMEAR, PLATE, OL_AOI, SM, SF, SF, PACK, PACK, PACK), 검사 5대, 자재 6건",
+    "tools": [
+     "lot_process_history",
+     "process_signals",
+     "equipment_events",
+     "lot_tests",
+     "material_usage"
+    ],
+    "llm_used": false,
+    "elapsed_ms": 9
+   },
+   {
+    "step": 4,
+    "agent": "CAUSE_ANALYSIS",
+    "action": "이전 사례 546건으로 원인 후보 순위: DESMEAR_INSUFFICIENT, HANDLING_SCRATCH, ET_RETEST_MISJUDGE",
+    "tools": [
+     "past_cases",
+     "similar_cases",
+     "process_signals"
+    ],
+    "llm_used": true,
+    "elapsed_ms": 3065
+   },
+   {
+    "step": 5,
+    "agent": "QA",
+    "action": "후보별 근거 검토, QA 확인 대상, 재발 판정 PRE_ACTION_PRODUCT",
+    "tools": [
+     "causal_requirements",
+     "item_lab_tests",
+     "recurrence_check"
+    ],
+    "llm_used": true,
+    "elapsed_ms": 1597
+   },
+   {
+    "step": 6,
+    "agent": "MANUFACTURING",
+    "action": "공정·검사 개선안 초안 (DESMEAR_INSUFFICIENT, ESC_FQC_SAMPLING), 공통점 있는 다른 Lot 81개",
+    "tools": [
+     "escape_assessment",
+     "detection_rate",
+     "standard_actions",
+     "candidate_lots"
+    ],
+    "llm_used": true,
+    "elapsed_ms": 1679
+   },
+   {
+    "step": 7,
+    "agent": "CS",
+    "action": "QA 검토 결과로 고객 회신 초안 작성, 처리방안 제안 선별 지원·대금 공제",
+    "tools": [
+     "reply_template",
+     "service_actions"
+    ],
+    "llm_used": true,
+    "elapsed_ms": 1415
+   }
+  ],
+  "warnings": [],
+  "langsmith_run_id": null,
+  "model_versions": {
+   "llm": "openai:gpt-5.4-mini",
+   "prompt": "agents-0.4",
+   "rules": "pcb-v5",
+   "cause_ranker": null
+  },
+  "elapsed_ms": 7774
+ }
+}

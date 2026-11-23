@@ -1,0 +1,14 @@
+# 테스트 전용: DB·Redis 연결은 TestcontainersConfiguration(@ServiceConnection)이 넣어 준다.
+
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+jwt:
+  secret: test-only-secret-0123456789-abcdefghijklmnop
+
+app:
+  alert:
+    scheduling:
+      enabled: false

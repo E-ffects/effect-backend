@@ -20,6 +20,7 @@ repositories {
 ext {
 	jjwtVersion = '0.13.0'
 	springdocVersion = '3.2.0'
+	awsSdkVersion = '2.55.11'
 }
 
 dependencies {
@@ -45,6 +46,14 @@ dependencies {
 
 	// API 문서
 	implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+
+	// 접수 원문 파일
+	implementation 'org.eclipse.angus:angus-mail'
+	implementation 'org.jsoup:jsoup:1.24.1'
+	implementation 'org.apache.pdfbox:pdfbox:3.0.8'
+	implementation platform("software.amazon.awssdk:bom:${awsSdkVersion}")
+	implementation 'software.amazon.awssdk:s3'
+	runtimeOnly 'software.amazon.awssdk:sts'
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'

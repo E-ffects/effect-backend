@@ -1,0 +1,79 @@
+package com.u1_2.effect.config.jwt;
+
+import com.u1_2.effect.config.jwt.JwtProvider.TokenClaims;
+import com.u1_2.effect.global.exception.AuthErrorCode;
+import com.u1_2.effect.global.exception.ErrorResponseWriter;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+/**
+ * Authorization: Bearer {accessToken} 검증.
+ * - 만료: 401 TOKEN_EXPIRED
+ * - 위조·형식 오류·Refresh 토큰 사용: 401 INVALID_TOKEN
+ */
+@Slf4j
+@RequiredArgsConstructor
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final String BEARER_PREFIX = "Bearer ";
+    private final JwtProvider jwtProvider;
+    private final ErrorResponseWriter errorResponseWriter;
+    private final RequestMatcher publicAuthEndpoints;
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // 로그인이나 토큰 재발급처럼 기존 액세스 토큰이 필요 없는 경로는 검사를 건너뜀
+        return publicAuthEndpoints.matches(request);
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (header == null || !header.startsWith(BEARER_PREFIX)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        TokenClaims claims;
+        try {
+            claims = jwtProvider.parse(header.substring(BEARER_PREFIX.length()));
+        } catch (ExpiredJwtException e) {
+            log.debug("Access token expired: uri={}", request.getRequestURI());
+            errorResponseWriter.write(response, AuthErrorCode.TOKEN_EXPIRED);
+            return;
+        } catch (JwtException | IllegalArgumentException e) {
+            log.warn("Invalid access token: uri={}, reason={}", request.getRequestURI(), e.getClass().getSimpleName());
+            errorResponseWriter.write(response, AuthErrorCode.INVALID_TOKEN);
+            return;
+        }
+
+        if (claims.type() != TokenType.ACCESS) {
+            log.warn("Non-access token used as access token: uri={}", request.getRequestURI());
+            errorResponseWriter.write(response, AuthErrorCode.INVALID_TOKEN);
+            return;
+        }
+
+        // 검증된 사용자 번호와 권한을 컨트롤러의 @CurrentUser에서 꺼낼 수 있게 저장함
+        AuthUser principal = new AuthUser(claims.userId(), claims.role());
+        var authentication = new UsernamePasswordAuthenticationToken(
+                principal, null, List.of(new SimpleGrantedAuthority(claims.role().getAuthority())));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        chain.doFilter(request, response);
+    }
+}
