@@ -45,22 +45,24 @@ public class CauseDecisionRepository {
                 """).query(String.class).list();
     }
 
-    public Optional<Refresh> lockDueRefresh(String analysisId) {
-        // 요청 처리 직후와 스케줄러가 같은 분석을 집어도 한 쪽만 호출함
+    public Optional<Refresh> claimDueRefresh(String analysisId, int leaseSeconds) {
+        // 요청 처리 직후와 스케줄러가 같은 분석을 집어도 한 쪽만 호출함. 다음 갱신 시각을 선점 만료 시각으로 미룸
         return jdbcClient.sql("""
-                SELECT analysis_id, rma_id, approval_status AS decision, decided_at, refresh_attempts AS attempts
-                FROM app.cause_decision WHERE analysis_id = :analysisId
-                    AND refresh_status = 'PENDING' AND next_refresh_at <= CURRENT_TIMESTAMP
-                FOR UPDATE SKIP LOCKED
-                """).param("analysisId", analysisId).query(Refresh.class).optional();
+                UPDATE app.cause_decision SET next_refresh_at = clock_timestamp() + :lease * INTERVAL '1 second'
+                WHERE analysis_id = :analysisId AND refresh_status = 'PENDING' AND next_refresh_at <= CURRENT_TIMESTAMP
+                RETURNING analysis_id, rma_id, approval_status AS decision, decided_at, refresh_attempts AS attempts,
+                    next_refresh_at AS claimed_until
+                """).param("analysisId", analysisId).param("lease", leaseSeconds).query(Refresh.class).optional();
     }
 
-    public void updateRefresh(String analysisId, String status, int attempts) {
-        jdbcClient.sql("""
+    public boolean updateRefresh(String analysisId, String status, int attempts, OffsetDateTime claimedUntil) {
+        // 호출하는 동안 판정이 다시 저장되면 갱신 예약이 새로 잡히므로 이전 판정의 결과로 덮어쓰지 않음
+        return jdbcClient.sql("""
                 UPDATE app.cause_decision SET refresh_status = :status, refresh_attempts = :attempts,
                     next_refresh_at = CASE WHEN :status = 'PENDING' THEN clock_timestamp() + INTERVAL '1 minute' END
-                WHERE analysis_id = :analysisId
-                """).param("analysisId", analysisId).param("status", status).param("attempts", attempts).update();
+                WHERE analysis_id = :analysisId AND refresh_status = 'PENDING' AND next_refresh_at = :claimedUntil
+                """).param("analysisId", analysisId).param("status", status).param("attempts", attempts)
+                .param("claimedUntil", claimedUntil).update() == 1;
     }
 
     public record Target(String analysisId, String result, String approvalStatus, String analysisLevel) {
@@ -70,6 +72,7 @@ public class CauseDecisionRepository {
                            String comment, String editor, OffsetDateTime decidedAt, boolean refresh) {
     }
 
-    public record Refresh(String analysisId, String rmaId, String decision, OffsetDateTime decidedAt, int attempts) {
+    public record Refresh(String analysisId, String rmaId, String decision, OffsetDateTime decidedAt, int attempts,
+                          OffsetDateTime claimedUntil) {
     }
 }
