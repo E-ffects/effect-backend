@@ -12,10 +12,14 @@ import com.u1_2.effect.TestcontainersConfiguration;
 import com.u1_2.effect.config.jwt.JwtProperties;
 import com.u1_2.effect.config.jwt.JwtProvider;
 import com.u1_2.effect.config.jwt.RefreshTokenCookie;
+import com.u1_2.effect.config.jwt.RefreshTokenRepository;
 import com.u1_2.effect.user.domain.Role;
 import com.u1_2.effect.user.domain.UserRepository;
 import jakarta.servlet.http.Cookie;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,10 +49,35 @@ class AuthIntegrationTest {
     @Autowired StringRedisTemplate redisTemplate;
     @Autowired JwtProvider jwtProvider;
     @Autowired JwtProperties jwtProperties;
+    @Autowired RefreshTokenRepository refreshTokens;
 
     @BeforeEach
     void clean() {
         userRepository.deleteAll();
+    }
+
+    @Test
+    void 같은_세션의_동시_교체는_한_번만_성공하고_이전_토큰은_현재_세션을_삭제하지_않는다() throws Exception {
+        long accountId = Long.MAX_VALUE;
+        refreshTokens.save(accountId, "original");
+        var start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> {
+                start.await();
+                return refreshTokens.rotate(accountId, "original", "first");
+            });
+            var second = executor.submit(() -> {
+                start.await();
+                return refreshTokens.rotate(accountId, "original", "second");
+            });
+            start.countDown();
+            boolean firstWon = first.get(5, TimeUnit.SECONDS);
+            assertThat(second.get(5, TimeUnit.SECONDS)).isNotEqualTo(firstWon);
+            assertThat(refreshTokens.deleteIfCurrent(accountId, "original")).isFalse();
+            assertThat(refreshTokens.deleteIfCurrent(accountId, firstWon ? "first" : "second")).isTrue();
+        } finally {
+            redisTemplate.delete("refresh:" + accountId);
+        }
     }
 
     @Test

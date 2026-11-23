@@ -1,29 +1,24 @@
 package com.u1_2.effect.config.attachment;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Optional;
-import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * 로컬 첨부를 내부 키로 저장함. 사용자 파일명은 DB에 보관하고 디스크 경로에는 쓰지 않음.
  */
-@Slf4j
 @Component
 @Profile({"local", "test"})
-public class LocalAttachmentStorage {
+public class LocalAttachmentStorage implements AttachmentStore {
 
     private final Path root;
 
@@ -31,24 +26,17 @@ public class LocalAttachmentStorage {
         this.root = Path.of(directory).toAbsolutePath().normalize();
     }
 
-    public String save(String rmaId, InputStream source) throws IOException {
-        Path key = Path.of(rmaId, UUID.randomUUID().toString());
+    @Override
+    public void write(String key, Resource source, long size) throws IOException {
         Path destination = root.resolve(key);
-        // DB 저장이 취소되면 먼저 저장한 로컬 파일도 삭제함
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                if (status == STATUS_ROLLED_BACK) {
-                    deleteRolledBackFile(destination);
-                }
-            }
-        });
         Files.createDirectories(destination.getParent());
-        Files.copy(source, destination);
-        return key.toString();
+        try (var input = source.getInputStream()) {
+            Files.copy(input, destination);
+        }
     }
 
-    public Optional<FileSystemResource> find(String key) {
+    @Override
+    public Optional<Resource> find(String key) {
         try {
             Path relative = Path.of(key);
             Path file = root.resolve(relative).normalize();
@@ -67,11 +55,8 @@ public class LocalAttachmentStorage {
         }
     }
 
-    private void deleteRolledBackFile(Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException e) {
-            log.warn("롤백된 첨부 파일을 삭제하지 못했습니다.", e);
-        }
+    @Override
+    public void delete(String key) throws IOException {
+        Files.deleteIfExists(root.resolve(key));
     }
 }

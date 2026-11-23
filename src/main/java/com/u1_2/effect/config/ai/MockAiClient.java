@@ -29,6 +29,7 @@ public class MockAiClient implements AiClient {
     private final Triage triage;
     private final JsonMapper jsonMapper;
     private final ObjectNode analysisSample;
+    private final SimilarCases similarSample;
     private final ConcurrentHashMap<String, Job> jobs = new ConcurrentHashMap<>();
 
     public MockAiClient(JsonMapper jsonMapper, Clock appClock) throws IOException {
@@ -39,7 +40,17 @@ public class MockAiClient implements AiClient {
             this.classification = jsonMapper.treeToValue(fixture.required("classify"), Classification.class);
             this.triage = jsonMapper.treeToValue(fixture.required("triage"), Triage.class);
             this.analysisSample = (ObjectNode) fixture.required("analysis");
+            var similar = jsonMapper.createObjectNode();
+            similar.set("rma_id", fixture.required("rma_id"));
+            similar.set("as_of", analysisSample.required("as_of"));
+            similar.set("items", analysisSample.required("result").required("similar_cases"));
+            this.similarSample = jsonMapper.treeToValue(similar, SimilarCases.class);
         }
+    }
+
+    @Override
+    public Health health() {
+        return new Health(true, "mock", "ok", "not_checked", "off");
     }
 
     @Override
@@ -63,7 +74,7 @@ public class MockAiClient implements AiClient {
         String id = "ana-" + UUID.randomUUID();
         jobs.put(id, new Job(request.rmaId(), request.mode(), request.claimedDefectQty(),
                 request.rawText().contains("처리 기록 없음"), new AtomicInteger()));
-        return new AnalysisRegistration(id, OffsetDateTime.now(appClock), 1000);
+        return new AnalysisRegistration(id, OffsetDateTime.now(appClock), 1000, "QUEUED");
     }
 
     @Override
@@ -92,6 +103,20 @@ public class MockAiClient implements AiClient {
             serviceAction.put("board_qty", job.claimedDefectQty());
         }
         return Optional.of(response);
+    }
+
+    @Override
+    public SimilarCases findSimilarCases(String rmaId, int limit) {
+        // 다른 접수에 샘플 사례를 실제 검색 결과처럼 붙이지 않음
+        if (!similarSample.rmaId().equals(rmaId)) {
+            return new SimilarCases(rmaId, OffsetDateTime.now(appClock), List.of());
+        }
+        return new SimilarCases(rmaId, similarSample.asOf(), similarSample.items().stream().limit(limit).toList());
+    }
+
+    @Override
+    public boolean refreshCase(CaseRefreshRequest request) {
+        return true;
     }
 
     private record Job(String rmaId, String mode, long claimedDefectQty, boolean noServiceHistory,

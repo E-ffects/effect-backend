@@ -4,15 +4,14 @@ import com.u1_2.effect.config.jwt.AuthUser;
 import com.u1_2.effect.global.annotation.CurrentUser;
 import com.u1_2.effect.global.dto.ResponseDto;
 import com.u1_2.effect.global.exception.ApiException;
-import com.u1_2.effect.rma.application.IntakeRegistrationService.Registration;
-import com.u1_2.effect.rma.application.IntakeWorkflowService;
+import com.u1_2.effect.rma.application.intake.IntakeRegistrationService.Registration;
+import com.u1_2.effect.rma.application.intake.IntakeWorkflowService;
 import com.u1_2.effect.rma.domain.RmaErrorCode;
 import com.u1_2.effect.rma.presentation.dto.CreateIntakeRequest;
 import com.u1_2.effect.rma.presentation.dto.RmaIntakeResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -23,12 +22,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
-/**
- * 신규 접수 multipart 요청과 저장했던 접수의 재처리 요청을 구분해 받음.
- */
 @RestController
-@Profile({"local", "test"})
-@ConditionalOnProperty(name = "ai.mode", havingValue = "mock", matchIfMissing = true)
+@Profile({"local", "test", "prod"})
 @RequiredArgsConstructor
 public class IntakeController {
 

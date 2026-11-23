@@ -43,6 +43,13 @@ CREATE TABLE pcb.qa_triage (
     decided_at TEXT NOT NULL
 );
 
+CREATE TABLE pcb.recurrence_review (
+    review_id TEXT PRIMARY KEY,
+    rma_item_id TEXT NOT NULL REFERENCES pcb.rma_item (rma_item_id),
+    verdict TEXT NOT NULL,
+    reviewed_at TEXT NOT NULL
+);
+
 INSERT INTO pcb.rma_claim VALUES
     ('RMA-08927', 'A01', '2025-11-20T08:56:35+09:00', '2025-11-19T06:31:47+09:00',
      '숏트 불량이 발생했습니다', 'PCB-ECU6-A1', 'LT-01603', '2543', 'ICT_FUNCTION', 'OPEN', 'ANALYZING'),
@@ -56,6 +63,9 @@ INSERT INTO pcb.rma_item VALUES
     ('ITEM-10611', 'RMA-10611', NULL, NULL, 650, 3, 0, NULL),
     ('ITEM-00015', 'RMA-00015', NULL, NULL, 500, 2, 2, 0);
 
+INSERT INTO pcb.recurrence_review VALUES
+    ('REVIEW-00015', 'ITEM-00015', 'RECURRENCE', '2025-01-07T09:00:00+09:00');
+
 INSERT INTO pcb.symptom_assessment VALUES
     ('SYM-08927', 'ITEM-08927', 'ELEC02', 'PROPOSED', '["숏트 불량이 발생했습니다"]', '2025-11-20T12:00:00+09:00');
 
@@ -65,9 +75,10 @@ INSERT INTO pcb.qa_triage VALUES
 INSERT INTO app.intake (rma_id, intake_state, created_by, created_at, updated_at) VALUES
     ('RMA-10611', 'NEEDS_INFO', 1, '2025-12-31T09:00:00+09:00', '2025-12-31T09:00:01+09:00');
 
-INSERT INTO app.ai_analysis (analysis_id, rma_id, mode, analysis_state, created_at) VALUES
-    ('ana-older', 'RMA-08927', 'B', 'FAILED', '2025-11-20T12:45:00+09:00'),
-    ('ana-latest', 'RMA-08927', 'B', 'SUCCEEDED', '2025-11-20T12:46:00+09:00');
+-- 고정 시계에서는 생성 시각이 같아도 실제 시작 시각이 늦은 분석을 선택해야 함
+INSERT INTO app.ai_analysis (analysis_id, rma_id, mode, analysis_state, created_at, poll_started_at) VALUES
+    ('ana-older', 'RMA-08927', 'B', 'FAILED', '2025-11-20T12:45:00+09:00', '2025-11-20T12:45:00+09:00'),
+    ('ana-latest', 'RMA-08927', 'B', 'SUCCEEDED', '2025-11-20T12:45:00+09:00', '2025-11-20T12:46:00+09:00');
 
 INSERT INTO app.cause_decision (rma_id, analysis_id, approval_status, analysis_level) VALUES
     ('RMA-08927', 'ana-latest', 'WAITING', 'L3');

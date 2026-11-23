@@ -7,7 +7,7 @@ import com.u1_2.effect.global.dto.ResponseDto;
 import com.u1_2.effect.global.dto.SuccessMessage;
 import com.u1_2.effect.user.application.AuthService;
 import com.u1_2.effect.user.application.AuthService.LoginResult;
-import com.u1_2.effect.user.application.AuthService.ReissueResult;
+import com.u1_2.effect.user.application.AuthService.SessionTokens;
 import com.u1_2.effect.user.presentation.dto.CheckUsernameResponse;
 import com.u1_2.effect.user.presentation.dto.CurrentUserResponse;
 import com.u1_2.effect.user.presentation.dto.LoginRequest;
@@ -64,15 +64,15 @@ public class AuthController {
     public ResponseEntity<ResponseDto<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginResult result = authService.login(request);
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.create(result.refreshToken()).toString())
-                .body(ResponseDto.ofSuccess(LoginResponse.of(result.accessToken(), result.user())));
+                .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.create(result.tokens().refreshToken()).toString())
+                .body(ResponseDto.ofSuccess(LoginResponse.of(result.tokens().accessToken(), result.user())));
     }
 
     @Operation(summary = "토큰 재발급", description = "refresh_token 쿠키로 Access Token을 재발급한다. Refresh Token도 함께 교체된다.")
     @PostMapping("/reissue")
     public ResponseEntity<ResponseDto<ReissueResponse>> reissue(
             @CookieValue(name = RefreshTokenCookie.NAME, required = false) String refreshToken) {
-        ReissueResult result = authService.reissue(refreshToken);
+        SessionTokens result = authService.reissue(refreshToken);
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.create(result.refreshToken()).toString())
                 .body(ResponseDto.ofSuccess(new ReissueResponse(result.accessToken())));

@@ -9,9 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 로그인한 사용자가 접수에 쓸 선택지를 공통 응답 형식으로 조회함.
- */
 @RestController
 @RequiredArgsConstructor
 public class MetaController {

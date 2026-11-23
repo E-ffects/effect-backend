@@ -1,9 +1,9 @@
 package com.u1_2.effect.rma.domain;
 
+import com.u1_2.effect.global.time.KoreaTime;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +17,6 @@ import tools.jackson.databind.json.JsonMapper;
 @Repository
 @RequiredArgsConstructor
 public class RmaDetailRepository {
-
-    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
 
     private final JdbcClient jdbcClient;
     private final JsonMapper jsonMapper;
@@ -37,14 +35,14 @@ public class RmaDetailRepository {
                 LEFT JOIN app.intake i ON i.rma_id = c.rma_id
                 LEFT JOIN LATERAL (
                     SELECT analysis_id, analysis_state
-                    FROM app.ai_analysis
+                    FROM app.ai_analysis analysis
                     WHERE rma_id = c.rma_id
-                    ORDER BY created_at DESC, poll_started_at DESC, analysis_id DESC
+                    ORDER BY %s
                     LIMIT 1
                 ) a ON TRUE
                 LEFT JOIN app.cause_decision d ON d.analysis_id = a.analysis_id
                 WHERE c.rma_id = :rmaId
-                """).param("rmaId", rmaId)
+                """.formatted(RmaHistoryOrder.ANALYSIS)).param("rmaId", rmaId)
                 .query((row, index) -> new Claim(
                         row.getString("rma_id"), readTime(row, "opened_at"), readTime(row, "occurred_at"),
                         row.getString("raw_text"), row.getString("reported_part_no"), row.getString("reported_lot_no"),
@@ -68,14 +66,14 @@ public class RmaDetailRepository {
     public Optional<Symptom> findSymptom(String rmaId) {
         // 품목의 최신 분류 결과에 분류표의 표시 이름을 붙여 조회함
         return jdbcClient.sql("""
-                SELECT s.primary_label, d.minor_name, d.major_name, s.status, s.evidence_spans_json
-                FROM pcb.symptom_assessment s
-                JOIN pcb.rma_item i ON i.rma_item_id = s.rma_item_id
-                JOIN pcb.symptom_definition d ON d.minor_code = s.primary_label
+                SELECT symptom.primary_label, d.minor_name, d.major_name, symptom.status, symptom.evidence_spans_json
+                FROM pcb.symptom_assessment symptom
+                JOIN pcb.rma_item i ON i.rma_item_id = symptom.rma_item_id
+                JOIN pcb.symptom_definition d ON d.minor_code = symptom.primary_label
                 WHERE i.rma_id = :rmaId
-                ORDER BY s.created_at DESC, s.assessment_id DESC
+                ORDER BY %s
                 LIMIT 1
-                """).param("rmaId", rmaId)
+                """.formatted(RmaHistoryOrder.SYMPTOM)).param("rmaId", rmaId)
                 .query((row, index) -> new Symptom(
                         row.getString("primary_label"), row.getString("minor_name"), row.getString("major_name"),
                         row.getString("status"),
@@ -86,11 +84,11 @@ public class RmaDetailRepository {
     public Optional<Triage> findTriage(String rmaId) {
         return jdbcClient.sql("""
                 SELECT severity, characteristic_symbol, analysis_level, rationale, decided_by, decided_at
-                FROM pcb.qa_triage
+                FROM pcb.qa_triage triage
                 WHERE rma_id = :rmaId
-                ORDER BY decided_at DESC, triage_id DESC
+                ORDER BY %s
                 LIMIT 1
-                """).param("rmaId", rmaId)
+                """.formatted(RmaHistoryOrder.TRIAGE)).param("rmaId", rmaId)
                 .query((row, index) -> new Triage(row.getInt("severity"), row.getString("characteristic_symbol"),
                         row.getString("analysis_level"), row.getString("rationale"), row.getString("decided_by"),
                         readTime(row, "decided_at")))
@@ -98,7 +96,7 @@ public class RmaDetailRepository {
     }
 
     private static OffsetDateTime readTime(ResultSet row, String column) throws SQLException {
-        return OffsetDateTime.parse(row.getString(column)).atZoneSameInstant(SEOUL).toOffsetDateTime();
+        return KoreaTime.inSeoul(OffsetDateTime.parse(row.getString(column)));
     }
 
     public record Claim(
