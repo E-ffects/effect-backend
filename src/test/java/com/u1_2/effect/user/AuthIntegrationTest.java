@@ -12,10 +12,14 @@ import com.u1_2.effect.TestcontainersConfiguration;
 import com.u1_2.effect.config.jwt.JwtProperties;
 import com.u1_2.effect.config.jwt.JwtProvider;
 import com.u1_2.effect.config.jwt.RefreshTokenCookie;
+import com.u1_2.effect.config.jwt.RefreshTokenRepository;
 import com.u1_2.effect.user.domain.Role;
 import com.u1_2.effect.user.domain.UserRepository;
 import jakarta.servlet.http.Cookie;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,10 +49,35 @@ class AuthIntegrationTest {
     @Autowired StringRedisTemplate redisTemplate;
     @Autowired JwtProvider jwtProvider;
     @Autowired JwtProperties jwtProperties;
+    @Autowired RefreshTokenRepository refreshTokens;
 
     @BeforeEach
     void clean() {
         userRepository.deleteAll();
+    }
+
+    @Test
+    void 같은_세션의_동시_교체는_한_번만_성공하고_이전_토큰은_현재_세션을_삭제하지_않는다() throws Exception {
+        long accountId = Long.MAX_VALUE;
+        refreshTokens.save(accountId, "original");
+        var start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> {
+                start.await();
+                return refreshTokens.rotate(accountId, "original", "first");
+            });
+            var second = executor.submit(() -> {
+                start.await();
+                return refreshTokens.rotate(accountId, "original", "second");
+            });
+            start.countDown();
+            boolean firstWon = first.get(5, TimeUnit.SECONDS);
+            assertThat(second.get(5, TimeUnit.SECONDS)).isNotEqualTo(firstWon);
+            assertThat(refreshTokens.deleteIfCurrent(accountId, "original")).isFalse();
+            assertThat(refreshTokens.deleteIfCurrent(accountId, firstWon ? "first" : "second")).isTrue();
+        } finally {
+            redisTemplate.delete("refresh:" + accountId);
+        }
     }
 
     @Test
@@ -106,11 +135,45 @@ class AuthIntegrationTest {
 
     @Test
     void 아이디_중복_확인() throws Exception {
-        mockMvc.perform(get("/auth/check-username").param("username", "hong"))
+        mockMvc.perform(get("/auth/check-username").param("username", "hong")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer not.a.jwt"))
                 .andExpect(jsonPath("$.content.available").value(true));
         signup();
         mockMvc.perform(get("/auth/check-username").param("username", "hong"))
                 .andExpect(jsonPath("$.content.available").value(false));
+    }
+
+    @Test
+    void 로그인한_사용자의_정보를_조회한다() throws Exception {
+        signup().andExpect(status().isOk());
+        String body = login("hong", "Passw0rd!").andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String accessToken = JsonPath.read(body, "$.content.token");
+        Long userId = userRepository.findByUsername("hong").orElseThrow().getId();
+
+        mockMvc.perform(get("/api/auth/me").contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("SUCCESS"))
+                .andExpect(jsonPath("$.content.id").value(Matchers.is(userId), Long.class))
+                .andExpect(jsonPath("$.content.username").value("hong"))
+                .andExpect(jsonPath("$.content.name").value("홍길동"))
+                .andExpect(jsonPath("$.content.role").value("QUALITY"))
+                .andExpect(jsonPath("$.content.role_label").value("품질관리자"))
+                .andExpect(jsonPath("$.content.password").doesNotExist());
+    }
+
+    @Test
+    void 현재_사용자_조회에는_Access_Token이_필요하다() throws Exception {
+        mockMvc.perform(get("/api/auth/me").contextPath("/api"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+        String refreshToken = jwtProvider.createRefreshToken(1L, Role.CS);
+        mockMvc.perform(get("/api/auth/me").contextPath("/api")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_TOKEN"));
     }
 
     @Test

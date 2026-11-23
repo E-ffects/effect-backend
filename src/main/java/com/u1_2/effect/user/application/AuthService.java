@@ -54,38 +54,44 @@ public class AuthService {
         return !userRepository.existsByUsername(username);
     }
 
+    public User getCurrentUser(Long userId) {
+        // 토큰에서 확인한 사용자 번호로 최신 프로필 정보를 조회함
+        return userRepository.findByIdOrThrow(userId, AuthErrorCode.INVALID_TOKEN);
+    }
+
     public LoginResult login(LoginRequest request) {
         User user = userRepository.findByUsername(request.username())
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
                 .orElseThrow(() -> new ApiException(AuthErrorCode.INVALID_CREDENTIALS));
 
-        String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole());
-        String refreshToken = jwtProvider.createRefreshToken(user.getId(), user.getRole());
-        refreshTokenRepository.save(user.getId(), refreshToken);
+        var tokens = createSessionTokens(user);
+        refreshTokenRepository.save(user.getId(), tokens.refreshToken());
 
         log.info("Login: userId={}", user.getId());
-        return new LoginResult(accessToken, refreshToken, user);
+        return new LoginResult(tokens, user);
     }
 
     /**
      * Refresh Token으로 Access·Refresh Token을 새로 발급한다.
      */
-    public ReissueResult reissue(String refreshToken) {
+    public SessionTokens reissue(String refreshToken) {
         TokenClaims claims = parseRefreshToken(refreshToken);
-        if (!refreshTokenRepository.matches(claims.userId(), refreshToken)) {
+        // 권한이 바뀌었을 수 있으므로 DB의 현재 권한으로 토큰을 만든 뒤 기존 세션과 일치할 때만 교체함
+        User user = getCurrentUser(claims.userId());
+        var tokens = createSessionTokens(user);
+        if (!refreshTokenRepository.rotate(user.getId(), refreshToken, tokens.refreshToken())) {
             log.warn("Refresh token mismatch: userId={}", claims.userId());
             throw new ApiException(AuthErrorCode.INVALID_TOKEN);
         }
-        // 권한이 바뀌었을 수 있으므로 토큰이 아니라 DB의 현재 값으로 발급
-        User user = userRepository.findById(claims.userId())
-                .orElseThrow(() -> new ApiException(AuthErrorCode.INVALID_TOKEN));
-
-        String newAccessToken = jwtProvider.createAccessToken(user.getId(), user.getRole());
-        String newRefreshToken = jwtProvider.createRefreshToken(user.getId(), user.getRole());
-        refreshTokenRepository.save(user.getId(), newRefreshToken);
 
         log.info("Reissue: userId={}", user.getId());
-        return new ReissueResult(newAccessToken, newRefreshToken);
+        return tokens;
+    }
+
+    private SessionTokens createSessionTokens(User user) {
+        String accessToken = jwtProvider.createAccessToken(user.getId(), user.getRole());
+        String refreshToken = jwtProvider.createRefreshToken(user.getId(), user.getRole());
+        return new SessionTokens(accessToken, refreshToken);
     }
 
     public void logout(String refreshToken) {
@@ -95,8 +101,7 @@ public class AuthService {
         try {
             TokenClaims claims = jwtProvider.parse(refreshToken);
             // 다른 곳에서 새로 로그인한 세션은 건드리지 않도록 저장된 토큰과 같을 때만 삭제
-            if (claims.type() == TokenType.REFRESH && refreshTokenRepository.matches(claims.userId(), refreshToken)) {
-                refreshTokenRepository.delete(claims.userId());
+            if (claims.type() == TokenType.REFRESH && refreshTokenRepository.deleteIfCurrent(claims.userId(), refreshToken)) {
                 log.info("Logout: userId={}", claims.userId());
             }
         } catch (JwtException | IllegalArgumentException e) {
@@ -122,9 +127,9 @@ public class AuthService {
         return claims;
     }
 
-    public record LoginResult(String accessToken, String refreshToken, User user) {
+    public record LoginResult(SessionTokens tokens, User user) {
     }
 
-    public record ReissueResult(String accessToken, String refreshToken) {
+    public record SessionTokens(String accessToken, String refreshToken) {
     }
 }

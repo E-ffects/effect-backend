@@ -2,6 +2,7 @@ package com.u1_2.effect.config.jwt;
 
 import com.u1_2.effect.user.domain.Role;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -39,6 +40,11 @@ public class JwtProvider {
         return create(userId, role, TokenType.REFRESH, properties.refreshTokenTtl());
     }
 
+    public String createServiceAccessToken() {
+        // 시연용 고정 시계와 무관하게 실제 시각으로 발급함. 사용자 권한에는 SYSTEM을 추가하지 않음
+        return token("spring", "SYSTEM", TokenType.ACCESS, Duration.ofMinutes(10)).signWith(key).compact();
+    }
+
     /**
      * 서명·만료를 검증하고 내용을 돌려준다. 토큰은 한 번만 파싱한다.
      *
@@ -62,16 +68,18 @@ public class JwtProvider {
     }
 
     private String create(Long userId, Role role, TokenType type, Duration ttl) {
+        return token(String.valueOf(userId), role.name(), type, ttl).signWith(key).compact();
+    }
+
+    private JwtBuilder token(String subject, String role, TokenType type, Duration ttl) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
-                .subject(String.valueOf(userId))
-                .claim(CLAIM_ROLE, role.name())
+                .subject(subject)
+                .claim(CLAIM_ROLE, role)
                 .claim(CLAIM_TYPE, type.name())
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plus(ttl)))
-                .signWith(key)
-                .compact();
+                .expiration(Date.from(now.plus(ttl)));
     }
 
     public record TokenClaims(Long userId, Role role, TokenType type) {
