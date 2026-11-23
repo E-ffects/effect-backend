@@ -1,7 +1,9 @@
 package com.u1_2.effect.rma.domain;
 
 import com.u1_2.effect.global.exception.ApiException;
+import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -15,6 +17,14 @@ public class RmaClaimRepository {
     public boolean exists(String rmaId) {
         return jdbcClient.sql("SELECT EXISTS (SELECT 1 FROM pcb.rma_claim WHERE rma_id = :rmaId)")
                 .param("rmaId", rmaId).query(Boolean.class).single();
+    }
+
+    public Set<String> existingIds(Collection<String> rmaIds) {
+        if (rmaIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(jdbcClient.sql("SELECT rma_id FROM pcb.rma_claim WHERE rma_id IN (:ids)")
+                .param("ids", rmaIds).query(String.class).list());
     }
 
     public void requireExists(String rmaId) {

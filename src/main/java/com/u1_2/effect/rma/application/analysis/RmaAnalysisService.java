@@ -4,7 +4,7 @@ import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.global.time.KoreaTime;
 import com.u1_2.effect.rma.domain.RmaErrorCode;
 import com.u1_2.effect.rma.domain.analysis.RmaAnalysisRepository;
-import com.u1_2.effect.rma.presentation.dto.RmaAnalysisResponse;
+import com.u1_2.effect.rma.presentation.analysis.dto.RmaAnalysisResponse;
 import com.u1_2.effect.user.domain.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

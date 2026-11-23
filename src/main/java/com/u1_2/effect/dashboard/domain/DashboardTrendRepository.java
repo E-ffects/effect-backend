@@ -1,5 +1,6 @@
 package com.u1_2.effect.dashboard.domain;
 
+import com.u1_2.effect.investigation.domain.InvestigationClaimSql;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -26,7 +27,7 @@ public class DashboardTrendRepository {
                     FROM pcb.rma_claim
                     WHERE opened_at::timestamptz >= :start AND opened_at::timestamptz < :end
                 )
-                """ + DashboardClaimSql.CURRENT_ITEMS + DashboardClaimSql.CLASSIFIED_CLAIMS + """
+                """ + InvestigationClaimSql.CURRENT_ITEMS + InvestigationClaimSql.CLASSIFIED_CLAIMS + """
                 SELECT (opened_at AT TIME ZONE 'Asia/Seoul')::date AS day, count(*) AS count
                 FROM classified_claims
                 WHERE
@@ -54,7 +55,7 @@ public class DashboardTrendRepository {
                     WHERE c.opened_at::timestamptz < :end
                       AND EXISTS (SELECT 1 FROM links l WHERE l.rma_id = c.rma_id)
                 )
-                """ + DashboardClaimSql.CURRENT_ITEMS + DashboardClaimSql.CLASSIFIED_CLAIMS + """
+                """ + InvestigationClaimSql.CURRENT_ITEMS + InvestigationClaimSql.CLASSIFIED_CLAIMS + """
                 SELECT a.day, concat_ws(' ', a.corrective_action_id, a.action_category) AS label
                 FROM actions a
                 WHERE (CAST(:product AS text) IS NULL AND CAST(:defectType AS text) IS NULL)

@@ -1,17 +1,21 @@
 package com.u1_2.effect.rma.application;
 
 import com.u1_2.effect.global.exception.ApiException;
-import com.u1_2.effect.rma.domain.RmaDetailRepository;
+import com.u1_2.effect.global.time.KoreaTime;
+import com.u1_2.effect.recurrence.domain.RecurrenceDecisionRepository;
+import com.u1_2.effect.report.domain.ReportRepository;
 import com.u1_2.effect.rma.domain.RmaDetailRepository.Claim;
+import com.u1_2.effect.rma.domain.RmaDetailRepository;
 import com.u1_2.effect.rma.domain.RmaErrorCode;
-import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.Customer;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.CustomerTriage;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.Item;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.QualityTriage;
+import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.ReportStatus;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.Symptom;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.Triage;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.TriageProposal;
+import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse;
 import com.u1_2.effect.user.domain.Role;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +32,8 @@ import tools.jackson.databind.json.JsonMapper;
 public class RmaDetailService {
 
     private final RmaDetailRepository rmaDetailRepository;
+    private final ReportRepository reportRepository;
+    private final RecurrenceDecisionRepository recurrenceDecisions;
     private final JsonMapper jsonMapper;
 
     public RmaDetailResponse getDetail(String rmaId, Role role) {
@@ -54,11 +60,19 @@ public class RmaDetailService {
         // 확정 판정과 임시 판정안을 별도 필드로 내려 화면에서 판정 확인 상태를 구분하게 함
         TriageProposal proposal = claim.triageProposal() == null ? null
                 : jsonMapper.readValue(claim.triageProposal(), TriageProposal.class);
+        var recurrence = quality ? recurrenceDecisions.find(rmaId).orElse(null) : null;
         return new RmaDetailResponse(
                 claim.rmaId(), claim.openedAt(), claim.occurredAt(), claim.rawText(), claim.reportedPartNo(),
                 claim.reportedLotNo(), claim.reportedDateCode(), claim.detectionStage(), claim.csStatus(),
                 new Customer(claim.customerId(), claim.customerName(), claim.industry()), items, symptom, triage, proposal,
                 quality ? claim.qaStatus() : null, quality ? claim.approvalStatus() : null,
-                claim.intakeState(), claim.analysisState());
+                claim.intakeState(), claim.analysisState(), quality ? reportStatus(rmaId) : null,
+                recurrence == null ? null : recurrence.decision(), recurrence == null ? null : recurrence.decidedBy(),
+                recurrence == null ? null : KoreaTime.inSeoul(recurrence.decidedAt()));
+    }
+
+    private ReportStatus reportStatus(String rmaId) {
+        var status = reportRepository.status(rmaId);
+        return new ReportStatus(status.exists(), status.reviewed());
     }
 }

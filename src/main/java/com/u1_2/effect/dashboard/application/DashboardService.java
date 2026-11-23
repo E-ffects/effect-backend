@@ -5,6 +5,7 @@ import com.u1_2.effect.dashboard.presentation.dto.CsDashboardResponse;
 import com.u1_2.effect.dashboard.presentation.dto.CsDashboardResponse.Kpis;
 import com.u1_2.effect.dashboard.presentation.dto.CsDashboardResponse.Period;
 import com.u1_2.effect.dashboard.presentation.dto.GetDashboardRequest;
+import com.u1_2.effect.global.time.KoreaDateRange;
 import com.u1_2.effect.global.time.KoreaTime;
 import com.u1_2.effect.user.application.RoleAccess;
 import com.u1_2.effect.user.domain.Role;
@@ -26,7 +27,7 @@ public class DashboardService {
         RoleAccess.require(role, Role.CS);
 
         var asOf = KoreaTime.inSeoul(OffsetDateTime.now(appClock));
-        var period = DashboardPeriod.resolve(request.from(), request.to(), asOf.toLocalDate());
+        var period = KoreaDateRange.resolve(request.from(), request.to(), asOf.toLocalDate());
         var values = repository.findKpis(period.start(), period.end());
         return new CsDashboardResponse(new Period(period.from(), period.to()), asOf,
                 new Kpis(values.receivedCount(), values.pendingCount(), values.closedCount(), values.estimatedLossKrw()));

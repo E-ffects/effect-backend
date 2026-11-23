@@ -7,3 +7,8 @@ spring:
 
 jwt:
   secret: test-only-secret-0123456789-abcdefghijklmnop
+
+app:
+  alert:
+    scheduling:
+      enabled: false

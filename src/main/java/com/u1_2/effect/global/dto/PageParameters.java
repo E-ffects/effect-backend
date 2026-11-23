@@ -12,7 +12,11 @@ public record PageParameters(int page, int size) {
     }
 
     public static PageParameters resolve(Integer page, Integer size) {
-        return new PageParameters(page == null ? 1 : page, size == null ? 30 : size);
+        return resolve(page, size, 30);
+    }
+
+    public static PageParameters resolve(Integer page, Integer size, int defaultSize) {
+        return new PageParameters(page == null ? 1 : page, size == null ? defaultSize : size);
     }
 
     // API 페이지는 1부터, DB 오프셋은 0부터 시작함
