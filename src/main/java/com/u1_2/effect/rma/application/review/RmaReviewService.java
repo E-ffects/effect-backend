@@ -35,7 +35,8 @@ public class RmaReviewService {
         var pagination = PageParameters.resolve(page, size);
         var levels = level.levels();
         var items = repository.findApprovals(status, levels, pagination.offset(), pagination.size()).stream()
-                .map(row -> new RmaApprovalResponse(row.rmaId(), row.analysisId(), row.analysisLevel(),
+                .map(row -> new RmaApprovalResponse(row.rmaId(), row.analysisId(), row.customerName(),
+                        row.reportedPartNo(), row.analysisLevel(),
                         row.approvalReasons() == null ? List.of()
                                 : List.of(jsonMapper.readValue(row.approvalReasons(), String[].class)),
                         row.topCauseCode(), row.topCauseName(), KoreaTime.inSeoul(row.requestedAt()), row.approvalStatus(),

@@ -52,6 +52,8 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 | 접수 폼·상세 | `GET /api/meta`, `GET /api/rmas/{rmaId}` |
 | RMA 사례 목록·CSV 다운로드 | `GET /api/rmas`, `GET /api/rmas/export` |
 | CS 대시보드 KPI | `GET /api/dashboard/cs` |
+| 품질 대시보드 KPI·불량 현황·조사 우선순위 | `GET /api/dashboard/quality` |
+| 품질 위젯 배치·주간 접수 추이 | `GET/PUT /api/dashboard/layout/quality`, `GET /api/dashboard/trend` |
 | 접수·재처리 | `POST /api/intake`, `POST /api/rmas/{rmaId}/intake/retry` |
 | QA 판정 | `GET /api/triage-reviews`, `PUT /api/rmas/{rmaId}/triage` |
 | 분석·승인 목록 | `GET/POST /api/rmas/{rmaId}/analysis`, `GET /api/approvals` |
@@ -62,6 +64,9 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 | AI 상태 | `GET /api/ai/health` |
 
 인증이 필요한 요청은 `Authorization: Bearer <access_token>`을 보냅니다. 일반 응답은 `{code, message, content}` 형식이고, 첨부 다운로드는 원본 파일 본문을 반환합니다. 승인 목록은 기본 L3 대기 목록이며 `level=L1_L2`와 `status=WAITING` 또는 `CONFIRMED`를 조합할 수 있습니다.
+
+- RMA 상세에서는 QUALITY가 `TRIAGE_REVIEW` 상태의 `content.triage_proposal`에서 `severity`, `characteristic_symbol`, `analysis_level`, `rationale`, `provisional`을 읽습니다. QA 확인 이후에는 `content.triage`를 사용합니다.
+- 승인 목록의 각 항목에 `customer_name`과 `reported_part_no`가 들어갑니다.
 
 ### RMA 사례 목록
 
@@ -89,6 +94,15 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 | `estimated_loss_krw` | 선택 기간의 `pcb.loss_ledger.occurred_at`에 해당하는 `amount_krw` 합계 |
 
 기존 목업 대시보드 화면과 연결할 때는 위 네 필드를 사용합니다. 제품별 위젯·고객 만족도·AI 요약은 별도 범위입니다.
+
+### 품질 대시보드
+
+- QUALITY 계정으로 `GET /api/dashboard/quality?from=2025-12-02&to=2025-12-31`을 호출합니다. 기간 규칙은 CS 대시보드와 같고, 비교 기준은 선택 기간 바로 앞의 같은 길이입니다.
+- `content.kpis`는 총 RMA, 반복 조사, 재발 의심, 추정 손실, 원인 확정률과 대책 효과율을 반환합니다. 추정 손실은 원장 발생일 기준입니다. 확정률·효과율에는 분자 `num`과 분모 `den`이 들어갑니다. 분모나 직전 값이 0이면 해당 비율 또는 증감률은 `null`입니다.
+- `defect_top5`의 `defect_type`은 목록의 `defectType` 필터에 바로 쓸 수 있는 불량 대분류입니다. `repeat_rank`는 기간 내 접수 2건 이상이 연결된 조사 목록입니다. `priority`는 조사별 가중 점수 상위 5건이며 손실 점수는 `pcb.loss_by_investigation.total_krw`로 계산합니다.
+- `repeat_rank`와 `priority` 항목은 `investigation_id`와 대표 `rma_id`를 반환합니다. `priority.evidence`에는 최신 근거 RMA가 최대 5건 들어갑니다. Vue에서 순위 행을 클릭하면 `rma_id`로 케이스 화면을 열 수 있습니다. 기존 `pattern_id` 링크와 위젯 이름은 프론트에서 조정이 필요합니다.
+- 위젯 배치는 QUALITY 계정별로 저장합니다. 조회 시 `content.layout`과 `content.default`를 받습니다. 저장 시 위젯 네 개의 `id`, `width`, `hidden`을 배열로 보내며 배열 순서가 표시 순서입니다.
+- 추이 API는 `from`부터 7일씩 `points`를 생성하며 접수가 없는 주는 0건을 반환합니다. 제품과 불량 대분류로 필터링할 수 있습니다. 필터 옵션은 `/api/meta`의 `products[].code`와 `defect_types`를 사용합니다. 대책 시행 표시는 QUALITY에 제공됩니다.
 
 ### 과거 유사 사례
 
