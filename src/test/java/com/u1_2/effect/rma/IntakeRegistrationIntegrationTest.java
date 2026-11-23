@@ -243,6 +243,36 @@ class IntakeRegistrationIntegrationTest {
     }
 
     @Test
+    void AI_장애가_아닌_예외로_접수_처리가_끊겨도_실패로_남기고_재처리할_수_있다() throws Exception {
+        doThrow(new ApiException(CommonErrorCode.INVALID_INPUT)).doCallRealMethod().when(aiClient)
+                .classify(argThat(input -> input != null && input.rawText().equals("분류 계약 오류")));
+
+        var response = mockMvc.perform(intake("분류 계약 오류", "api-classify-unexpected", Role.CS))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.intake_state").value("FAILED"))
+                .andExpect(jsonPath("$.content.error.code").value("INTERNAL_ERROR"))
+                .andReturn().getResponse();
+        String rmaId = jsonMapper.readTree(response.getContentAsByteArray()).at("/content/rma_id").stringValue();
+
+        mockMvc.perform(post("/api/rmas/{id}/intake/retry", rmaId).contextPath("/api").header("Authorization", token(Role.CS)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.intake_state").value("ACCEPTED"))
+                .andExpect(jsonPath("$.content.error").doesNotExist());
+    }
+
+    @Test
+    void QA_확인_후_분석_등록이_예외로_끊겨도_실패로_남기고_재처리할_수_있다() throws Exception {
+        String rmaId = startAnalysis("triage-unexpected", "임시 판정 후 등록 예외").rmaId();
+        doThrow(new IllegalStateException("등록 응답 해석 실패")).doCallRealMethod().when(aiClient)
+                .registerAnalysis(argThat(input -> input != null && input.rmaId().equals(rmaId)));
+
+        updateTriage(rmaId, Role.QUALITY, "L3", "판정 근거를 확인했습니다.")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.intake_state").value("FAILED"))
+                .andExpect(jsonPath("$.content.qa_status").value("TRIAGED"));
+        mockMvc.perform(post("/api/rmas/{id}/intake/retry", rmaId).contextPath("/api").header("Authorization", token(Role.QUALITY)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.intake_state").value("ACCEPTED"))
+                .andExpect(jsonPath("$.content.triage.rationale").value("판정 근거를 확인했습니다."));
+    }
+
+    @Test
     void 접수_API는_CS와_필수_폼_값을_검증한다() throws Exception {
         mockMvc.perform(intake(RAW_TEXT, "api-quality", Role.QUALITY)).andExpect(status().isForbidden());
         mockMvc.perform(intake(RAW_TEXT, "api-invalid-form", Role.CS, "2099-01-01"))

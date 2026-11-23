@@ -54,9 +54,10 @@ public class IntakeWorkflowStateService {
     }
 
     @Transactional
-    public void failRetry(String rmaId) {
+    public void failUnexpected(String rmaId) {
+        // AI 장애 외의 예외로 처리가 끊겨도 PROCESSING에 남지 않게 해서 재처리 API로 복구할 수 있게 함
         var error = CommonErrorCode.INTERNAL_ERROR;
-        repository.finish(rmaId, "FAILED", error.getErrorCode(), error.getMessage(), OffsetDateTime.now(appClock));
+        repository.failIfProcessing(rmaId, error.getErrorCode(), error.getMessage(), OffsetDateTime.now(appClock));
     }
 
     @Transactional

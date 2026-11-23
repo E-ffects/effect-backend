@@ -82,6 +82,15 @@ public class RmaIntakeWorkflowRepository {
                 .param("errorDetail", errorDetail).param("now", now).update();
     }
 
+    public boolean failIfProcessing(String rmaId, String errorCode, String errorDetail, OffsetDateTime now) {
+        // 처리 중에 멈춘 접수만 실패로 바꿔 재처리할 수 있게 함. 이미 다음 단계로 넘어간 접수는 그대로 둠
+        return jdbcClient.sql("""
+                UPDATE app.intake SET intake_state = 'FAILED', error_code = :errorCode, error_detail = :errorDetail,
+                    updated_at = :now WHERE rma_id = :rmaId AND intake_state = 'PROCESSING'
+                """).param("rmaId", rmaId).param("errorCode", errorCode).param("errorDetail", errorDetail)
+                .param("now", now).update() == 1;
+    }
+
     public Snapshot findSnapshot(String rmaId) {
         return jdbcClient.sql("""
                 SELECT c.rma_id, c.cs_status, c.qa_status, i.intake_state, i.classification_json::text AS classification,
