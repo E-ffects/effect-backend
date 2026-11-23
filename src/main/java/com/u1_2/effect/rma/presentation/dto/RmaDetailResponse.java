@@ -21,6 +21,7 @@ public record RmaDetailResponse(
         List<Item> items,
         Symptom symptom,
         Triage triage,
+        @JsonInclude(JsonInclude.Include.NON_NULL) TriageProposal triageProposal,
         @JsonInclude(JsonInclude.Include.NON_NULL) String qaStatus,
         @JsonInclude(JsonInclude.Include.NON_NULL) String approvalStatus,
         String intakeState,
@@ -59,5 +60,10 @@ public record RmaDetailResponse(
             String decidedBy,
             OffsetDateTime decidedAt
     ) implements Triage {
+    }
+
+    public record TriageProposal(
+            int severity, String characteristicSymbol, String analysisLevel, String rationale, boolean provisional
+    ) {
     }
 }

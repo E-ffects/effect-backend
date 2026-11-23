@@ -8,12 +8,13 @@ public record MetaResponse(
         List<ProductOption> products,
         List<DetectionStageOption> detectionStages,
         List<String> customerRequests,
+        List<String> defectTypes,
         LocalDate referenceDate
 ) {
     public record CustomerOption(String customerId, String customerName) {
     }
 
-    public record ProductOption(String specId, String partNo) {
+    public record ProductOption(String specId, String partNo, String code, String name) {
     }
 
     public record DetectionStageOption(String code, String label) {

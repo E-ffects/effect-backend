@@ -364,11 +364,15 @@ class IntakeRegistrationIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content.total").value(2))
                 .andExpect(jsonPath("$.content.items[*].rma_id", hasItems(l1.rmaId(), l2.rmaId())))
                 .andExpect(jsonPath("$.content.items[*].analysis_level", hasItems("L1", "L2")))
+                .andExpect(jsonPath("$.content.items[*].customer_name", everyItem(is("고객사 A01"))))
+                .andExpect(jsonPath("$.content.items[*].reported_part_no", everyItem(is("PCB-ECU6-A1"))))
                 .andExpect(jsonPath("$.content.items[0].top_cause_code").isString());
         mockMvc.perform(get("/api/approvals").contextPath("/api").header("Authorization", token(Role.QUALITY))
                         .param("status", "CONFIRMED").param("level", "L1_L2"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content.total").value(1))
-                .andExpect(jsonPath("$.content.items[0].rma_id").value(confirmed.rmaId()));
+                .andExpect(jsonPath("$.content.items[0].rma_id").value(confirmed.rmaId()))
+                .andExpect(jsonPath("$.content.items[0].customer_name").value("고객사 A01"))
+                .andExpect(jsonPath("$.content.items[0].reported_part_no").value("PCB-ECU6-A1"));
         mockMvc.perform(get("/api/approvals").contextPath("/api").header("Authorization", token(Role.CS)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/approvals").contextPath("/api").header("Authorization", token(Role.QUALITY))
@@ -481,6 +485,23 @@ class IntakeRegistrationIntegrationTest {
     @Test
     void 임시_QA_판정을_확인하면_담당자와_이력을_저장하고_분석을_한_건만_시작한다() throws Exception {
         String rmaId = startAnalysis("triage-confirm", "임시 판정").rmaId();
+        jdbcClient.sql("""
+                UPDATE app.intake SET triage_proposal_json = jsonb_set(triage_proposal_json,
+                    '{characteristic_symbol}', to_jsonb('SC'::text)) WHERE rma_id = :id
+                """).param("id", rmaId).update();
+        var detail = get("/api/rmas/{id}", rmaId).contextPath("/api");
+        mockMvc.perform(detail.header("Authorization", token(Role.QUALITY)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.triage").isEmpty())
+                .andExpect(jsonPath("$.content.triage_proposal.analysis_level").value("L3"))
+                .andExpect(jsonPath("$.content.triage_proposal.severity").isNumber())
+                .andExpect(jsonPath("$.content.triage_proposal.characteristic_symbol").value("SC"))
+                .andExpect(jsonPath("$.content.triage_proposal.rationale").isNotEmpty())
+                .andExpect(jsonPath("$.content.triage_proposal.provisional").value(true));
+        mockMvc.perform(get("/api/rmas/{id}", rmaId).contextPath("/api")
+                        .header("Authorization", token(Role.CS)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.triage_proposal").doesNotHaveJsonPath());
         updateTriage(rmaId, Role.CS, "L3", "판정 내용을 확인했습니다.").andExpect(status().isForbidden());
         updateTriage(rmaId, Role.QUALITY, "L2", "짧음").andExpect(status().isBadRequest());
 
@@ -494,6 +515,10 @@ class IntakeRegistrationIntegrationTest {
         }
 
         findAnalysis(rmaId, Role.QUALITY).andExpect(jsonPath("$.content.analysis_state").value("QUEUED"));
+        mockMvc.perform(detail)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.triage.analysis_level").value("L2"))
+                .andExpect(jsonPath("$.content.triage_proposal").doesNotHaveJsonPath());
         assertThat(jdbcClient.sql("SELECT COUNT(*) FROM app.ai_analysis WHERE rma_id = :id")
                 .param("id", rmaId).query(Long.class).single()).isEqualTo(1);
         assertThat(jdbcClient.sql("SELECT COUNT(*) FROM pcb.qa_triage WHERE rma_id = :id")

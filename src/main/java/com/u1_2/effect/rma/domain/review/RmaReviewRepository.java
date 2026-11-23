@@ -18,6 +18,8 @@ public class RmaReviewRepository {
     private static final String APPROVALS = """
             FROM app.cause_decision d
             JOIN app.ai_analysis a ON a.analysis_id = d.analysis_id
+            LEFT JOIN pcb.rma_claim c ON c.rma_id = d.rma_id
+            LEFT JOIN pcb.customer u ON u.customer_id = c.customer_id
             LEFT JOIN app.intake i ON i.rma_id = d.rma_id
             LEFT JOIN LATERAL (
                 SELECT analysis_level, severity, rationale, decided_by
@@ -37,7 +39,8 @@ public class RmaReviewRepository {
     public List<ApprovalRow> findApprovals(ApprovalStatus status, List<String> levels, long offset, int size) {
         // 등급 수정이 바로 목록에 반영되도록 현재 QA 판정을 먼저 사용함
         return approvals("""
-                SELECT d.rma_id, d.analysis_id, COALESCE(t.analysis_level, d.analysis_level) AS analysis_level,
+                SELECT d.rma_id, d.analysis_id, u.customer_name, c.reported_part_no,
+                    COALESCE(t.analysis_level, d.analysis_level) AS analysis_level,
                     COALESCE(NULLIF(a.result_json #> '{qa_review,approval_reasons}', 'null'::jsonb),
                              i.triage_result_json -> 'approval_reasons')::text AS approval_reasons,
                     a.result_json #>> '{cause_candidates,0,cause_code}' AS top_cause_code,
@@ -100,7 +103,8 @@ public class RmaReviewRepository {
         }
     }
 
-    public record ApprovalRow(String rmaId, String analysisId, String analysisLevel, String approvalReasons,
+    public record ApprovalRow(String rmaId, String analysisId, String customerName, String reportedPartNo,
+                              String analysisLevel, String approvalReasons,
                               String topCauseCode, String topCauseName, OffsetDateTime requestedAt, String approvalStatus,
                               Integer severity, String rationale, String decidedBy) {
     }

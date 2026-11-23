@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * DB 선택지와 백엔드가 검증하는 고정 선택지를 접수 폼용으로 합침.
+ * 접수·추이 화면에 필요한 DB 선택지와 고정 선택지를 합침.
  */
 @Service
 @RequiredArgsConstructor
@@ -31,15 +31,16 @@ public class MetaService {
     private final Clock appClock;
 
     public MetaResponse getMeta() {
-        // 접수 화면에서 직접 고르는 항목을 한 번에 내려줌
         List<CustomerOption> customers = metaRepository.findCustomers().stream()
                 .map(customer -> new CustomerOption(customer.customerId(), customer.customerName()))
                 .toList();
         List<ProductOption> products = metaRepository.findProducts().stream()
-                .map(product -> new ProductOption(product.specId(), product.partNo()))
+                // 접수는 part_no를, 추이 위젯은 동일한 품번을 code로 읽음
+                .map(product -> new ProductOption(product.specId(), product.partNo(), product.partNo(), product.productFamily()))
                 .toList();
 
         // 화면의 기본 기간도 대시보드가 집계할 때 사용하는 동일한 앱 기준일을 따름
-        return new MetaResponse(customers, products, DETECTION_STAGES, CustomerRequest.labels(), LocalDate.now(appClock));
+        return new MetaResponse(customers, products, DETECTION_STAGES, CustomerRequest.labels(),
+                metaRepository.findDefectTypes(), LocalDate.now(appClock));
     }
 }
