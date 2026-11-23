@@ -17,6 +17,8 @@ spring:
       hibernate:
         jdbc:
           time_zone: Asia/Seoul
+    hibernate:
+      ddl-auto: validate
 
   flyway:
     locations: classpath:db/migration
@@ -33,6 +35,10 @@ jwt:
   access-token-ttl: 30m
   refresh-token-ttl: 7d
   cookie-secure: true
+
+ai:
+  mode: ${AI_MODE:mock}
+  base-url: ${AI_BASE_URL:http://127.0.0.1:8080/ai/v1}
 
 server:
   port: 8000
@@ -69,3 +75,19 @@ spring:
 app:
   clock:
     fixed: "2025-12-31T09:00:00+09:00"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+ai:
+  mode: ${AI_MODE:http}
+  base-url: ${AI_BASE_URL}
+
+app:
+  attachments:
+    s3:
+      bucket: ${APP_ATTACHMENTS_S3_BUCKET}
+      region: ${AWS_REGION}

@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.u1_2.effect.TestcontainersConfiguration;
 import com.u1_2.effect.config.ai.AiClient.AnalysisRequest;
 import com.u1_2.effect.config.ai.MockAiClient;
-import com.u1_2.effect.rma.application.IntakeWorkflowStateService;
+import com.u1_2.effect.rma.application.intake.IntakeWorkflowStateService;
 import java.time.Duration;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;

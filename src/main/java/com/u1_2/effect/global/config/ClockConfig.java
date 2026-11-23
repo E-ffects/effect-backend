@@ -1,8 +1,8 @@
 package com.u1_2.effect.global.config;
 
+import com.u1_2.effect.global.time.KoreaTime;
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,10 +15,9 @@ public class ClockConfig {
 
     @Bean
     public Clock appClock(@Value("${app.clock.fixed:}") String fixedTime) {
-        ZoneId zone = ZoneId.of("Asia/Seoul");
         if (fixedTime.isBlank()) {
-            return Clock.system(zone);
+            return Clock.system(KoreaTime.ZONE);
         }
-        return Clock.fixed(OffsetDateTime.parse(fixedTime).toInstant(), zone);
+        return Clock.fixed(OffsetDateTime.parse(fixedTime).toInstant(), KoreaTime.ZONE);
     }
 }

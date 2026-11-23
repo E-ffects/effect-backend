@@ -18,11 +18,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 첨부 목록은 JSON으로, 실제 다운로드는 파일 본문으로 반환함.
- */
 @RestController
-@Profile({"local", "test"})
+@Profile({"local", "test", "prod"})
 @RequiredArgsConstructor
 public class RmaAttachmentController {
 

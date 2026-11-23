@@ -1,6 +1,6 @@
 package com.u1_2.effect.rma.presentation.dto;
 
-import com.u1_2.effect.rma.domain.DetectionStage;
+import com.u1_2.effect.rma.domain.intake.DetectionStage;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

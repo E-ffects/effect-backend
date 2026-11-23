@@ -5,8 +5,9 @@ import com.u1_2.effect.meta.presentation.dto.MetaResponse;
 import com.u1_2.effect.meta.presentation.dto.MetaResponse.CustomerOption;
 import com.u1_2.effect.meta.presentation.dto.MetaResponse.DetectionStageOption;
 import com.u1_2.effect.meta.presentation.dto.MetaResponse.ProductOption;
-import com.u1_2.effect.rma.domain.CustomerRequest;
-import com.u1_2.effect.rma.domain.DetectionStage;
+import com.u1_2.effect.rma.domain.intake.CustomerRequest;
+import com.u1_2.effect.rma.domain.intake.DetectionStage;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -22,12 +23,12 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class MetaService {
 
-    private static final LocalDate REFERENCE_DATE = LocalDate.of(2025, 12, 31);
     private static final List<DetectionStageOption> DETECTION_STAGES = Arrays.stream(DetectionStage.values())
             .map(stage -> new DetectionStageOption(stage.name(), stage.getLabel()))
             .toList();
 
     private final MetaRepository metaRepository;
+    private final Clock appClock;
 
     public MetaResponse getMeta() {
         // 접수 화면에서 직접 고르는 항목을 한 번에 내려줌
@@ -38,6 +39,7 @@ public class MetaService {
                 .map(product -> new ProductOption(product.specId(), product.partNo()))
                 .toList();
 
-        return new MetaResponse(customers, products, DETECTION_STAGES, CustomerRequest.labels(), REFERENCE_DATE);
+        // 화면의 기본 기간도 대시보드가 집계할 때 사용하는 동일한 앱 기준일을 따름
+        return new MetaResponse(customers, products, DETECTION_STAGES, CustomerRequest.labels(), LocalDate.now(appClock));
     }
 }

@@ -18,7 +18,7 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.clock.fixed=2025-12-31T15:30:00Z")
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Import(TestcontainersConfiguration.class)
@@ -51,7 +51,7 @@ class MetaIntegrationTest {
                 .andExpect(jsonPath("$.content.customer_requests[0]").value("대체품 출하"))
                 .andExpect(jsonPath("$.content.customer_requests[1]").value("대금 공제"))
                 .andExpect(jsonPath("$.content.customer_requests[2]").value("선별 지원·대금 공제"))
-                .andExpect(jsonPath("$.content.reference_date").value("2025-12-31"));
+                .andExpect(jsonPath("$.content.reference_date").value("2026-01-01"));
     }
 
     @Test

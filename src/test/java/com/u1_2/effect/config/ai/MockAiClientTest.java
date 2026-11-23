@@ -3,6 +3,7 @@ package com.u1_2.effect.config.ai;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.u1_2.effect.config.ai.AiClient.AnalysisRequest;
+import com.u1_2.effect.config.ai.AiClient.SimilarCase;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -42,6 +43,14 @@ class MockAiClientTest {
         var mock = client();
         assertThat(completedAction(mock, "처리 기록 없음", 9).isNull()).isTrue();
         assertThat(completedAction(mock, "일반 접수", 3).path("board_qty").longValue()).isEqualTo(3);
+    }
+
+    @Test
+    void 목업_유사_사례는_원본_샘플_접수에만_반환한다() throws Exception {
+        var mock = client();
+        assertThat(mock.findSimilarCases("RMA-08927", 1).items())
+                .extracting(SimilarCase::rmaId).containsExactly("RMA-08486");
+        assertThat(mock.findSimilarCases("RMA-10611", 5).items()).isEmpty();
     }
 
     private MockAiClient client() throws Exception {
