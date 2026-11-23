@@ -24,7 +24,7 @@ env:
 jobs:
   deploy:
     # ECR push와 클러스터 API는 울산 캠퍼스 네트워크에서만 열린다
-    runs-on: self-hosted
+    runs-on: [self-hosted, campus]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
