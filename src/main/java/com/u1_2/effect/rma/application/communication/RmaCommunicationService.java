@@ -9,15 +9,12 @@ import com.u1_2.effect.rma.domain.RmaErrorCode;
 import com.u1_2.effect.rma.domain.analysis.RmaAnalysisRepository;
 import com.u1_2.effect.rma.domain.communication.RmaCommunicationRepository;
 import com.u1_2.effect.rma.domain.communication.RmaCommunicationRepository.NewMessage;
-import com.u1_2.effect.rma.domain.communication.RmaCommunicationRepository.ServiceAction;
 import com.u1_2.effect.rma.presentation.communication.dto.CreateRmaCommunicationRequest;
-import com.u1_2.effect.rma.presentation.communication.dto.CreateRmaServiceActionRequest;
-import com.u1_2.effect.rma.presentation.communication.dto.CreateRmaServiceActionRequest.ActionType;
-import com.u1_2.effect.rma.presentation.communication.dto.CreateRmaServiceActionRequest.Result;
+import com.u1_2.effect.rma.presentation.communication.dto.CreateRmaCommunicationRequest.Source;
 import com.u1_2.effect.rma.presentation.communication.dto.RmaCommunicationResponse;
 import com.u1_2.effect.rma.presentation.communication.dto.RmaCommunicationResponse.History;
 import com.u1_2.effect.rma.presentation.communication.dto.RmaCommunicationResponse.Item;
-import com.u1_2.effect.rma.presentation.communication.dto.RmaServiceActionResponse;
+import com.u1_2.effect.rma.presentation.communication.dto.RmaFollowUpDraftResponse;
 import com.u1_2.effect.user.application.AuthService;
 import com.u1_2.effect.user.application.RoleAccess;
 import com.u1_2.effect.user.domain.Role;
@@ -39,6 +36,24 @@ public class RmaCommunicationService {
     private final AuthService authService;
     private final Clock appClock;
 
+    public RmaFollowUpDraftResponse createFollowUpDraft(String rmaId, Role role) {
+        RoleAccess.require(role, Role.CS);
+        claimRepository.requireExists(rmaId);
+        var context = repository.findFollowUpContext(rmaId)
+                .orElseThrow(() -> new ApiException(RmaErrorCode.FOLLOW_UP_DRAFT_NOT_READY));
+
+        // 별도 생성 API가 생기기 전에는 내부 분석 내용이나 미확정 조치 없이 편집용 문안을 반환함
+        String messageText = """
+                안녕하세요.
+
+                접수하신 반품 건(%s, 품번 %s)의 품질 검토와 원인 확인을 완료했습니다.
+                추가로 확인이 필요한 사항이 있으시면 회신 부탁드립니다.
+
+                감사합니다.
+                """.formatted(rmaId, context.reportedPartNo()).strip();
+        return new RmaFollowUpDraftResponse(rmaId, context.analysisId(), messageText, Source.MANUAL);
+    }
+
     @Transactional
     public RmaCommunicationResponse recordMessage(String rmaId, CreateRmaCommunicationRequest request, AuthUser user) {
         RoleAccess.require(user.role(), Role.CS);
@@ -52,8 +67,9 @@ public class RmaCommunicationService {
         String messageId = "MSG-" + UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now(appClock);
         // 화면에서 보낸 회신 사실을 기록함. 원문과 작성자 기록은 같은 트랜잭션에 저장함
-        repository.insertMessage(new NewMessage(messageId, rmaId, claim.customerId(), request.messageText(),
-                KoreaTime.formatPcbTime(now), request.source().name(), request.analysisId(), authorId, now));
+        repository.insertMessage(new NewMessage(messageId, rmaId, claim.customerId(), "customer", "CS",
+                request.messageText(), KoreaTime.formatPcbTime(now), request.source().name(), request.analysisId(),
+                authorId, now, null));
 
         String state = claim.csStatus();
         if ("OPEN".equals(state)) {
@@ -70,36 +86,6 @@ public class RmaCommunicationService {
                 .map(row -> new Item(row.messageId(), row.audience(), row.authorRole(), row.authorName(),
                         row.messageText(), KoreaTime.inSeoul(row.sentAt())))
                 .toList());
-    }
-
-    @Transactional
-    public RmaServiceActionResponse recordAction(String rmaId, CreateRmaServiceActionRequest request, Role role) {
-        RoleAccess.require(role, Role.CS);
-        if (request.boardQty() == 0 && request.actionType() != ActionType.NO_CHARGE_SAMPLE_RETURN) {
-            throw new ApiException(CommonErrorCode.INVALID_INPUT);
-        }
-
-        var claim = claimRepository.requireForUpdate(rmaId);
-        boolean executed = request.result() == Result.EXECUTED;
-        // L3는 확정 판정 뒤에만 고객 처리를 실행할 수 있음. 기존 종료 이력의 QA 상태도 인정함
-        if (executed && !"CAUSE_DECIDED".equals(claim.qaStatus()) && !"CLOSED".equals(claim.qaStatus())
-                && analysisRepository.findLatestQaLevel(rmaId).filter("L3"::equals).isPresent()) {
-            throw new ApiException(RmaErrorCode.CAUSE_NOT_DECIDED);
-        }
-
-        String itemId = repository.findItemId(rmaId).orElseThrow(() -> new ApiException(CommonErrorCode.INVALID_INPUT));
-        String actionId = "ACT-" + UUID.randomUUID();
-        OffsetDateTime now = OffsetDateTime.now(appClock);
-        String timestamp = KoreaTime.formatPcbTime(now);
-        repository.insertServiceAction(new ServiceAction(actionId, itemId, request.actionType().name(),
-                request.boardQty(), request.result().name(), timestamp, executed ? timestamp : null));
-
-        // 종료 상태와 실제 실행 시각을 같이 저장해 대시보드 집계 기준을 맞춤
-        if (executed) {
-            claimRepository.updateCsStatus(rmaId, "CLOSED");
-        }
-        return new RmaServiceActionResponse(rmaId, actionId, request.actionType().name(), request.result().name(),
-                executed ? "CLOSED" : claim.csStatus(), executed ? now : null);
     }
 
     private void validateMessage(String text) {

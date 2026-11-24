@@ -3,11 +3,13 @@ package com.u1_2.effect.rma.application.intake;
 import com.u1_2.effect.config.ai.AiClient;
 import com.u1_2.effect.config.ai.AiClient.ClassifyRequest;
 import com.u1_2.effect.config.ai.AiErrorCode;
+import com.u1_2.effect.config.ai.IntakeClassificationText;
 import com.u1_2.effect.config.jwt.AuthUser;
 import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.rma.application.analysis.RmaAnalysisRegistrationService;
+import com.u1_2.effect.rma.domain.communication.RmaCommunicationRepository;
 import com.u1_2.effect.rma.domain.intake.RmaIntakeWorkflowRepository;
-import com.u1_2.effect.rma.presentation.dto.RmaIntakeResponse;
+import com.u1_2.effect.rma.presentation.intake.dto.RmaIntakeResponse;
 import com.u1_2.effect.user.application.RoleAccess;
 import com.u1_2.effect.user.domain.Role;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * 접수 저장 이후 분류 → QA 판정 → 분석 등록을 이어감. 단계마다 저장된 상태로 응답함.
@@ -29,7 +32,9 @@ public class IntakeWorkflowService {
 
     private final IntakeRegistrationService registrationService;
     private final RmaIntakeWorkflowRepository repository;
+    private final RmaCommunicationRepository communicationRepository;
     private final IntakeWorkflowStateService stateService;
+    private final IntakeResponseQuery responseQuery;
     private final AiClient aiClient;
     private final RmaAnalysisRegistrationService analysisRegistrationService;
 
@@ -38,15 +43,18 @@ public class IntakeWorkflowService {
         // 접수 저장을 먼저 커밋하고 새 접수일 때만 AI를 호출함
         var registration = registrationService.register(request, user, key);
         if (registration.created()) {
-            try {
-                processIntake(registration.rmaId());
-            } catch (RuntimeException e) {
-                // 접수는 이미 저장됐으므로 실패 상태로 응답하고 재처리 API로 이어가게 함
-                log.error("접수 처리 실패 rmaId={}", registration.rmaId(), e);
-                stateService.failUnexpected(registration.rmaId());
-            }
+            processSavedIntake(registration.rmaId());
         }
-        return stateService.response(registration.rmaId());
+        return responseQuery.find(registration.rmaId());
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public RmaIntakeResponse reply(String rmaId, String messageText, AuthUser user, String key) {
+        RoleAccess.require(user.role(), Role.CS);
+        if (stateService.beginReply(rmaId, messageText, user, StringUtils.hasText(key) ? key.strip() : null)) {
+            processSavedIntake(rmaId);
+        }
+        return responseQuery.find(rmaId);
     }
 
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -56,16 +64,29 @@ public class IntakeWorkflowService {
         try {
             processIntake(rmaId);
         } catch (RuntimeException e) {
+            // 재처리 중 예상하지 못한 오류는 상태를 기록한 뒤 공통 에러 응답으로 넘김
             stateService.failUnexpected(rmaId);
             throw e;
         }
-        return stateService.response(rmaId);
+        return responseQuery.find(rmaId);
+    }
+
+    private void processSavedIntake(String rmaId) {
+        try {
+            processIntake(rmaId);
+        } catch (RuntimeException e) {
+            // 이미 저장된 접수와 회신은 남겨 두고 실패 상태에서 재처리할 수 있게 함
+            log.error("접수 처리 실패 rmaId={}", rmaId, e);
+            stateService.failUnexpected(rmaId);
+        }
     }
 
     private void processIntake(String rmaId) {
         var input = repository.findInput(rmaId);
+        String classificationText = IntakeClassificationText.withSupplements(input.rawText(),
+                communicationRepository.findCustomerSupplements(rmaId));
         try {
-            var classification = aiClient.classify(new ClassifyRequest(rmaId, input.rawText(),
+            var classification = aiClient.classify(new ClassifyRequest(rmaId, classificationText,
                     input.detectionStage(), input.reportedPartNo(), input.customerId()));
             if (!stateService.saveClassification(input, classification)) {
                 return;

@@ -55,7 +55,8 @@ public class MockAiClient implements AiClient {
 
     @Override
     public Classification classify(ClassifyRequest request) {
-        if (request.rawText().contains("정보 부족")) {
+        // 보충 회신이 있으면 최근 입력으로 정보 부족 시나리오를 다시 판단함
+        if (IntakeClassificationText.latestSection(request.rawText()).contains("정보 부족")) {
             return new Classification("INSUFFICIENT_INFO", null, null, null, List.of(),
                     List.of("불량이 발생한 공정과 확인한 증상을 알려주세요."));
         }

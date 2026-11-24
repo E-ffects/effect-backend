@@ -4,6 +4,7 @@ import com.u1_2.effect.config.ai.AiClient;
 import com.u1_2.effect.config.ai.AiErrorCode;
 import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.rma.domain.RmaClaimRepository;
+import com.u1_2.effect.rma.domain.analysis.AnalysisResultStates;
 import com.u1_2.effect.rma.domain.analysis.RmaAnalysisRepository;
 import com.u1_2.effect.rma.domain.analysis.RmaAnalysisRepository.Pending;
 import com.u1_2.effect.rma.domain.analysis.RmaAnalysisRepository.Update;
@@ -77,7 +78,7 @@ public class RmaAnalysisPollingService {
     }
 
     private void saveResponse(Pending pending, String state, JsonNode response) {
-        boolean hasResult = state.equals("SUCCEEDED") || state.equals("PARTIAL");
+        boolean hasResult = AnalysisResultStates.hasResult(state);
         if (hasResult && !response.path("result").isObject()) {
             fail(pending.analysisId(), "ANALYSIS_INVALID_RESPONSE", "AI 분석 결과를 확인할 수 없습니다.");
             return;

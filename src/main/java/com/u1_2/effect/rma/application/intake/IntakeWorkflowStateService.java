@@ -4,23 +4,24 @@ import com.u1_2.effect.config.ai.AiClient.AnalysisRegistration;
 import com.u1_2.effect.config.ai.AiClient.Classification;
 import com.u1_2.effect.config.ai.AiClient.Triage;
 import com.u1_2.effect.config.ai.AiErrorCode;
+import com.u1_2.effect.config.jwt.AuthUser;
 import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.global.exception.CommonErrorCode;
 import com.u1_2.effect.global.time.KoreaTime;
-import com.u1_2.effect.rma.domain.RmaAttachmentRepository;
 import com.u1_2.effect.rma.domain.RmaClaimRepository;
 import com.u1_2.effect.rma.domain.RmaErrorCode;
-import com.u1_2.effect.rma.domain.intake.RmaIntakeWorkflowRepository;
 import com.u1_2.effect.rma.domain.analysis.RmaAnalysisRepository;
 import com.u1_2.effect.rma.domain.analysis.RmaAnalysisRepository.AnalysisRow;
+import com.u1_2.effect.rma.domain.communication.RmaCommunicationRepository;
+import com.u1_2.effect.rma.domain.communication.RmaCommunicationRepository.NewMessage;
+import com.u1_2.effect.rma.domain.intake.RmaIntakeWorkflowRepository;
 import com.u1_2.effect.rma.domain.intake.RmaIntakeWorkflowRepository.Input;
-import com.u1_2.effect.rma.domain.intake.RmaIntakeWorkflowRepository.Snapshot;
 import com.u1_2.effect.rma.domain.review.RmaTriageRepository;
 import com.u1_2.effect.rma.domain.review.RmaTriageRepository.Decision;
-import com.u1_2.effect.rma.presentation.dto.RmaIntakeResponse;
+import com.u1_2.effect.rma.presentation.intake.dto.IntakeErrorResponse;
+import com.u1_2.effect.user.application.AuthService;
 import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -38,16 +39,45 @@ public class IntakeWorkflowStateService {
     private final RmaClaimRepository claimRepository;
     private final RmaIntakeWorkflowRepository repository;
     private final RmaAnalysisRepository analysisRepository;
-    private final RmaAttachmentRepository attachmentRepository;
     private final RmaTriageRepository triageRepository;
+    private final RmaCommunicationRepository communicationRepository;
+    private final AuthService authService;
     private final JsonMapper jsonMapper;
     private final Clock appClock;
 
     @Transactional
     public void beginRetry(String rmaId) {
-        if (!repository.claimRetry(rmaId, OffsetDateTime.now(appClock))) {
-            throw new ApiException(claimRepository.exists(rmaId)
-                    ? RmaErrorCode.INTAKE_NOT_FAILED : RmaErrorCode.RMA_NOT_FOUND);
+        claimRepository.requireForUpdate(rmaId);
+        beginProcessing(rmaId, "FAILED", RmaErrorCode.INTAKE_NOT_FAILED, OffsetDateTime.now(appClock));
+    }
+
+    @Transactional
+    public boolean beginReply(String rmaId, String messageText, AuthUser user, String key) {
+        // 같은 접수에 회신을 동시에 등록해도 한 건씩 중복과 상태를 확인함
+        var claim = claimRepository.requireForUpdate(rmaId);
+        long authorId = authService.getCurrentUser(user.id()).getId();
+        if (key != null) {
+            var prior = communicationRepository.findCustomerSupplement(rmaId, authorId, key);
+            if (prior.isPresent()) {
+                if (!prior.get().equals(messageText)) {
+                    throw new ApiException(RmaErrorCode.INTAKE_REPLY_REQUEST_CONFLICT);
+                }
+                return false;
+            }
+        }
+
+        OffsetDateTime now = OffsetDateTime.now(appClock);
+        beginProcessing(rmaId, "NEEDS_INFO", RmaErrorCode.INTAKE_NOT_NEEDS_INFO, now);
+        // 접수 상태와 받은 회신을 같은 트랜잭션에 저장한 뒤 AI를 호출함
+        communicationRepository.insertMessage(new NewMessage("MSG-" + UUID.randomUUID(), rmaId,
+                claim.customerId(), "CS", "customer", messageText, KoreaTime.formatPcbTime(now),
+                "CUSTOMER_SUPPLEMENT", null, authorId, null, key));
+        return true;
+    }
+
+    private void beginProcessing(String rmaId, String expectedState, RmaErrorCode error, OffsetDateTime now) {
+        if (!repository.claimForProcessing(rmaId, expectedState, now)) {
+            throw new ApiException(error);
         }
         repository.clearAutomaticProposals(rmaId);
         claimRepository.updateQaStatus(rmaId, "RECEIVED");
@@ -115,49 +145,10 @@ public class IntakeWorkflowStateService {
         OffsetDateTime now = OffsetDateTime.now(appClock);
         String code = AiErrorCode.AI_UNAVAILABLE.getErrorCode();
         if (analysisMode != null) {
-            String error = jsonMapper.writeValueAsString(new RmaIntakeResponse.Failure(code, detail));
+            String error = jsonMapper.writeValueAsString(new IntakeErrorResponse(code, detail));
             analysisRepository.insertAnalysis(new AnalysisRow("failed-" + UUID.randomUUID(), rmaId, analysisMode,
                     "FAILED", now, now, now, error, 1000));
         }
         repository.finish(rmaId, "FAILED", code, detail, now);
-    }
-
-    public RmaIntakeResponse response(String rmaId) {
-        var state = repository.findSnapshot(rmaId);
-        Classification classification = state.classification() == null ? null
-                : jsonMapper.readValue(state.classification(), Classification.class);
-        var symptom = classification == null ? null : new RmaIntakeResponse.Symptom(classification.minorCode(),
-                classification.minorName(), classification.majorName(), classification.status(), classification.evidenceSpans());
-        boolean currentAnalysis = "ACCEPTED".equals(state.intakeState())
-                || ("FAILED".equals(state.intakeState()) && "TRIAGED".equals(state.qaStatus()));
-        var analysis = !currentAnalysis || state.analysisId() == null ? null
-                : new RmaIntakeResponse.Analysis(state.analysisId().startsWith("failed-") ? null : state.analysisId(),
-                        state.analysisState());
-        var failure = state.errorCode() == null ? null : new RmaIntakeResponse.Failure(state.errorCode(), state.errorDetail());
-        var attachments = attachmentRepository.findAttachments(rmaId).stream()
-                .map(a -> new RmaIntakeResponse.Attachment(a.attachmentId(), a.kind(), a.fileName())).toList();
-        var questions = state.questions() == null ? List.<String>of()
-                : List.of(jsonMapper.readValue(state.questions(), String[].class));
-
-        return new RmaIntakeResponse(rmaId, state.intakeState(), state.csStatus(), state.qaStatus(),
-                symptom, responseTriage(state), questions, analysis, attachments, failure);
-    }
-
-    private RmaIntakeResponse.Triage responseTriage(Snapshot state) {
-        Triage automatic = state.triage() == null ? null : jsonMapper.readValue(state.triage(), Triage.class);
-        if ("TRIAGED".equals(state.qaStatus()) || "ANALYZING".equals(state.qaStatus())) {
-            // 화면에는 자동 판정안보다 품질관리자가 저장한 판정을 우선 표시함
-            var manual = triageRepository.findManual(state.rmaId());
-            if (manual.isPresent()) {
-                var decision = manual.get();
-                var reasons = automatic != null && decision.analysisLevel().equals(automatic.analysisLevel())
-                        ? automatic.approvalReasons() : List.<String>of();
-                return new RmaIntakeResponse.Triage(decision.severity(), decision.characteristicSymbol(),
-                        decision.analysisLevel(), "L3".equals(decision.analysisLevel()), reasons, decision.rationale(), null);
-            }
-        }
-        return automatic == null ? null : new RmaIntakeResponse.Triage(automatic.severity(),
-                automatic.characteristicSymbol(), automatic.analysisLevel(), automatic.needsApproval(),
-                automatic.approvalReasons(), automatic.rationale(), automatic.provisional() ? Boolean.TRUE : null);
     }
 }

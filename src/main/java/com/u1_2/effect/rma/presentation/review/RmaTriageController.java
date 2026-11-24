@@ -1,11 +1,11 @@
-package com.u1_2.effect.rma.presentation;
+package com.u1_2.effect.rma.presentation.review;
 
 import com.u1_2.effect.config.jwt.AuthUser;
 import com.u1_2.effect.global.annotation.CurrentUser;
 import com.u1_2.effect.global.dto.ResponseDto;
 import com.u1_2.effect.rma.application.review.RmaTriageService;
-import com.u1_2.effect.rma.presentation.dto.RmaTriageUpdateResponse;
-import com.u1_2.effect.rma.presentation.dto.UpdateRmaTriageRequest;
+import com.u1_2.effect.rma.presentation.review.dto.RmaTriageUpdateResponse;
+import com.u1_2.effect.rma.presentation.review.dto.UpdateRmaTriageRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

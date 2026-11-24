@@ -9,6 +9,9 @@ public record RmaAnalysisResponse(
         JsonNode progress, JsonNode result,
         @JsonInclude(JsonInclude.Include.NON_NULL) JsonNode trace,
         JsonNode warnings, JsonNode error, OffsetDateTime updatedAt,
-        @JsonInclude(JsonInclude.Include.NON_NULL) String langsmithRunId
+        @JsonInclude(JsonInclude.Include.NON_NULL) String langsmithRunId,
+        @JsonInclude(JsonInclude.Include.NON_NULL) CauseDecision causeDecision
 ) {
+    public record CauseDecision(String approvalStatus, @JsonInclude(JsonInclude.Include.NON_NULL) String adoptedCauseCode) {
+    }
 }

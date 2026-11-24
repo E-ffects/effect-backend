@@ -1,6 +1,7 @@
 package com.u1_2.effect.rma.domain.review;
 
 import com.u1_2.effect.rma.domain.RmaHistoryOrder;
+import com.u1_2.effect.rma.domain.analysis.AnalysisResultStates;
 import java.time.OffsetDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ public class RmaReviewRepository {
             WHERE d.approval_status = :status AND COALESCE(t.analysis_level, d.analysis_level) IN (:levels)
                 AND (d.approval_status <> 'WAITING' OR a.analysis_id = (
                     SELECT analysis.analysis_id FROM app.ai_analysis analysis
-                    WHERE analysis.rma_id = d.rma_id AND analysis.analysis_state IN ('SUCCEEDED', 'PARTIAL')
+                    WHERE analysis.rma_id = d.rma_id AND analysis.analysis_state IN (:resultStates)
                     ORDER BY %s LIMIT 1
                 ))
             """.formatted(RmaHistoryOrder.TRIAGE, RmaHistoryOrder.ANALYSIS);
@@ -56,7 +57,8 @@ public class RmaReviewRepository {
     }
 
     private JdbcClient.StatementSpec approvals(String select, ApprovalStatus status, List<String> levels, String suffix) {
-        return jdbcClient.sql(select + APPROVALS + suffix).param("status", status.name()).param("levels", levels);
+        return jdbcClient.sql(select + APPROVALS + suffix).param("status", status.name()).param("levels", levels)
+                .param("resultStates", AnalysisResultStates.WITH_RESULT);
     }
 
     public List<TriageRow> findTriageReviews(long offset, int size) {

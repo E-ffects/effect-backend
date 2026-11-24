@@ -23,7 +23,8 @@ import org.springframework.util.StringUtils;
 @Transactional(readOnly = true)
 public class AlertService {
 
-    private static final List<String> SCREEN_TYPES = List.of("고위험", "재발 의심", "확산형", "급증", "반복 재발");
+    private static final List<String> SCREEN_TYPES = List.of(
+            "고위험", "재발 의심", "확산형", "급증", "반복 재발", "원인 판정 결과", "분석 결과");
 
     private final AlertRepository repository;
 
@@ -75,7 +76,7 @@ public class AlertService {
     }
 
     private AlertsResponse.Item toItem(AlertRepository.Item row) {
-        return new AlertsResponse.Item(row.id(), row.type(), row.rmaId(), row.correctiveActionId(), row.targetLabel(),
+        return new AlertsResponse.Item(row.id(), row.type(), row.rmaId(), row.correctiveActionId(), row.patternId(), row.targetLabel(),
                 row.reason(), row.checkItems(), KoreaTime.inSeoul(row.createdAt()), row.read(), row.starred());
     }
 }

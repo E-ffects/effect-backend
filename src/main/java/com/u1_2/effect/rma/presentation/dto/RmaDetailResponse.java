@@ -2,6 +2,7 @@ package com.u1_2.effect.rma.presentation.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.u1_2.effect.recurrence.domain.RecurrenceDecision;
+import com.u1_2.effect.rma.presentation.intake.dto.IntakeErrorResponse;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -30,7 +31,10 @@ public record RmaDetailResponse(
         @JsonInclude(JsonInclude.Include.NON_NULL) ReportStatus report,
         @JsonInclude(JsonInclude.Include.NON_NULL) RecurrenceDecision recurrenceDecision,
         @JsonInclude(JsonInclude.Include.NON_NULL) String decidedBy,
-        @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime decidedAt
+        @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime decidedAt,
+        @JsonInclude(JsonInclude.Include.NON_NULL) Boolean followUpDraftAvailable,
+        @JsonInclude(JsonInclude.Include.NON_NULL) List<String> followUpQuestions,
+        @JsonInclude(JsonInclude.Include.NON_NULL) IntakeErrorResponse error
 ) {
     public record ReportStatus(boolean exists, boolean reviewed) {
     }
