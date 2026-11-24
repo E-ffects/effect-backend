@@ -54,6 +54,32 @@ class AlertsIntegrationTest {
     }
 
     @Test
+    void 기능_적용_후_저장한_접수만_처리_상태와_관계없이_품질_알림을_한번_만든다() throws Exception {
+        jdbcClient.sql("""
+                INSERT INTO pcb.rma_claim (rma_id, reported_part_no) VALUES ('RMA-NEW-INTAKE', 'PCB-NEW');
+                INSERT INTO app.intake (rma_id, intake_state, created_by, created_at, updated_at, notify_quality_on_intake)
+                VALUES ('RMA-A', 'ACCEPTED', 91001, '2025-12-17T09:00:00+09:00', CURRENT_TIMESTAMP, FALSE);
+                INSERT INTO app.intake (rma_id, intake_state, created_by, created_at, updated_at)
+                VALUES ('RMA-NEW-INTAKE', 'FAILED', 91001, '2025-12-20T01:00:00Z', CURRENT_TIMESTAMP);
+                """).update();
+        sources.refresh();
+        long newIntakeId = id("신규 반품 접수");
+        jdbcClient.sql("UPDATE app.intake SET intake_state = 'ACCEPTED' WHERE rma_id = 'RMA-NEW-INTAKE'").update();
+        sources.refresh();
+
+        mvc.perform(quality(get(ALERTS)).param("type", "신규 반품 접수").param("after_id", Long.toString(suspectedId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.items.length()").value(1))
+                .andExpect(jsonPath("$.content.items[0].id").value(newIntakeId))
+                .andExpect(jsonPath("$.content.items[0].rma_id").value("RMA-NEW-INTAKE"))
+                .andExpect(jsonPath("$.content.items[0].target_label").value("PCB-NEW · RMA-NEW-INTAKE"))
+                .andExpect(jsonPath("$.content.items[0].created_at").value("2025-12-20T10:00:00+09:00"))
+                .andExpect(jsonPath("$.content.unread_by_type['신규 반품 접수']").value(1));
+        mvc.perform(request(get(ALERTS), USER, Role.CS).param("type", "신규 반품 접수"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void 급증은_서울_날짜의_두_기간을_비교하고_최신_분류로_접수를_한번만_센다() throws Exception {
         jdbcClient.sql("""
                 INSERT INTO pcb.rma_claim (rma_id, reported_part_no, opened_at)

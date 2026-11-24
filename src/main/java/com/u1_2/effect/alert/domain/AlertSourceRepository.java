@@ -98,6 +98,12 @@ public class AlertSourceRepository {
                            END, '접수 상세에서 분석 상태와 결과 확인', NULL
                     FROM app.ai_analysis
                     WHERE analysis_state IN ('SUCCEEDED', 'PARTIAL', 'FAILED') AND completed_at IS NOT NULL
+                    UNION ALL
+                    -- 저장이 완료된 신규 접수를 알림 대상으로 삼아 AI 처리에 실패해도 품질 담당자에게 보이게 함
+                    SELECT 'new-intake:' || rma_id, '신규 반품 접수', rma_id, NULL, created_at,
+                           '새로운 반품 접수가 저장됨', '접수 원문과 분류·QA 진행 상태 확인', NULL
+                    FROM app.intake
+                    WHERE notify_quality_on_intake
                 )
                 """ + INSERT_EVENTS).param("critical", RmaSeverity.CRITICAL.minimum()).update();
     }
