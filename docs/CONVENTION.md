@@ -155,7 +155,8 @@ com.u1_2.effect
 ## 7. Git
 
 ### 7.1 브랜치
-- `develop`: 메인 개발 브랜치. 직접 push 금지, PR로만 머지.
+- `main`: 유일한 기준 브랜치. 직접 push 금지, PR로만 머지. **머지하면 바로 배포된다.**
+  - 클러스터 배포 권한(AWS OIDC Role)이 `main`에서만 발급되어 `develop`은 쓰지 않는다.
 - 작업 브랜치: `{타입}/{설명}` (예: `feat/rma-list`, `fix/token-reissue`).
 
 ### 7.2 커밋 메시지
