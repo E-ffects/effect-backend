@@ -31,7 +31,11 @@ public class RmaDetailRepository {
                        COALESCE(a.analysis_state, 'NOT_REQUESTED') AS analysis_state,
                        COALESCE(d.approval_status, 'NOT_REQUIRED') AS approval_status,
                        CASE WHEN :includeTriageProposal AND i.intake_state = 'TRIAGE_REVIEW'
-                            THEN NULLIF(i.triage_proposal_json, 'null'::jsonb)::text END AS triage_proposal
+                            THEN NULLIF(i.triage_proposal_json, 'null'::jsonb)::text END AS triage_proposal,
+                       CASE WHEN i.intake_state = 'NEEDS_INFO'
+                            THEN NULLIF(i.follow_up_questions_json, 'null'::jsonb)::text END AS follow_up_questions,
+                       CASE WHEN i.intake_state = 'FAILED' THEN i.error_code END AS intake_error_code,
+                       CASE WHEN i.intake_state = 'FAILED' THEN i.error_detail END AS intake_error_detail
                 FROM pcb.rma_claim c
                 JOIN pcb.customer u ON u.customer_id = c.customer_id
                 LEFT JOIN app.intake i ON i.rma_id = c.rma_id
@@ -53,7 +57,8 @@ public class RmaDetailRepository {
                         row.getString("cs_status"), row.getString("qa_status"), row.getString("customer_id"),
                         row.getString("customer_name"), row.getString("industry"), row.getString("intake_state"),
                         row.getString("analysis_state"), row.getString("approval_status"),
-                        row.getString("triage_proposal")))
+                        row.getString("triage_proposal"), row.getString("follow_up_questions"),
+                        row.getString("intake_error_code"), row.getString("intake_error_detail")))
                 .optional();
     }
 
@@ -107,7 +112,8 @@ public class RmaDetailRepository {
             String rmaId, OffsetDateTime openedAt, OffsetDateTime occurredAt, String rawText,
             String reportedPartNo, String reportedLotNo, String reportedDateCode, String detectionStage,
             String csStatus, String qaStatus, String customerId, String customerName, String industry,
-            String intakeState, String analysisState, String approvalStatus, String triageProposal
+            String intakeState, String analysisState, String approvalStatus, String triageProposal,
+            String followUpQuestions, String intakeErrorCode, String intakeErrorDetail
     ) {
     }
 

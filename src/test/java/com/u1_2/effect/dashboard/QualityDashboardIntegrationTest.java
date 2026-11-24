@@ -109,7 +109,24 @@ class QualityDashboardIntegrationTest {
     }
 
     private MockHttpServletRequestBuilder request(Role role) {
-        return get("/api/dashboard/quality").contextPath("/api")
+        return request("", role);
+    }
+
+    @Test
+    void 품질_요약에_같은_기간의_접수와_원인확정과_재발의심을_표시한다() throws Exception {
+        mvc.perform(request("/summary", Role.QUALITY)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.summary").value(
+                        "선택 기간에 4건이 접수됐습니다. 원인 확정은 1건이고, 확인이 필요한 재발 의심은 1건입니다."));
+        mvc.perform(request("/summary", Role.QUALITY).param("from", "2025-01-01").param("to", "2025-01-01"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.summary").value(
+                        "선택 기간에 0건이 접수됐습니다. 원인 확정은 0건이고, 확인이 필요한 재발 의심은 0건입니다."));
+        mvc.perform(request("/summary", Role.CS)).andExpect(status().isForbidden());
+        mvc.perform(request("/summary", Role.QUALITY).param("from", "2025-12-31").param("to", "2025-12-01"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    private MockHttpServletRequestBuilder request(String suffix, Role role) {
+        return get("/api/dashboard/quality" + suffix).contextPath("/api")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt.createAccessToken(1L, role));
     }
 }

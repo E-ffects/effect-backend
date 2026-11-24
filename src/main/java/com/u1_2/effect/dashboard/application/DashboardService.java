@@ -4,6 +4,7 @@ import com.u1_2.effect.dashboard.domain.DashboardRepository;
 import com.u1_2.effect.dashboard.presentation.dto.CsDashboardResponse;
 import com.u1_2.effect.dashboard.presentation.dto.CsDashboardResponse.Kpis;
 import com.u1_2.effect.dashboard.presentation.dto.CsDashboardResponse.Period;
+import com.u1_2.effect.dashboard.presentation.dto.DashboardSummaryResponse;
 import com.u1_2.effect.dashboard.presentation.dto.GetDashboardRequest;
 import com.u1_2.effect.global.time.KoreaDateRange;
 import com.u1_2.effect.global.time.KoreaTime;
@@ -31,5 +32,12 @@ public class DashboardService {
         var values = repository.findKpis(period.start(), period.end());
         return new CsDashboardResponse(new Period(period.from(), period.to()), asOf,
                 new Kpis(values.receivedCount(), values.pendingCount(), values.closedCount(), values.estimatedLossKrw()));
+    }
+
+    public DashboardSummaryResponse getCsSummary(GetDashboardRequest request, Role role) {
+        // 처리 중은 날짜와 무관한 현재 건수라 선택 기간 접수·종료와 구분해 표시함
+        var kpis = getCs(request, role).kpis();
+        return new DashboardSummaryResponse("선택 기간에 %d건이 접수되고 %d건이 종료됐습니다. 현재 처리 중인 접수는 %d건입니다."
+                .formatted(kpis.receivedCount(), kpis.closedCount(), kpis.pendingCount()));
     }
 }

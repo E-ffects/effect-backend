@@ -1,6 +1,7 @@
 package com.u1_2.effect.dashboard.application;
 
 import com.u1_2.effect.dashboard.domain.QualityDashboardRepository;
+import com.u1_2.effect.dashboard.presentation.dto.DashboardSummaryResponse;
 import com.u1_2.effect.dashboard.presentation.dto.GetDashboardRequest;
 import com.u1_2.effect.dashboard.presentation.dto.QualityDashboardResponse;
 import com.u1_2.effect.dashboard.presentation.dto.QualityDashboardResponse.Comparison;
@@ -38,8 +39,7 @@ public class QualityDashboardService {
     private final Clock appClock;
 
     public QualityDashboardResponse get(GetDashboardRequest request, Role role) {
-        RoleAccess.require(role, Role.QUALITY);
-        var period = KoreaDateRange.resolve(request.from(), request.to(), KoreaTime.today(appClock));
+        var period = resolvePeriod(request, role);
         var totals = repository.findTotals(period);
         var defects = repository.findDefects(period).stream().map(d -> new Defect(d.defectType(), d.count())).toList();
         var ranked = ranking.rank(period, null);
@@ -62,6 +62,18 @@ public class QualityDashboardService {
         return new QualityDashboardResponse(new Period(period.from(), period.to()), kpis,
                 defects, repeats.stream().limit(5).toList(),
                 ranked.stream().limit(5).map(this::toPriority).toList());
+    }
+
+    public DashboardSummaryResponse getSummary(GetDashboardRequest request, Role role) {
+        // 요약에는 본문과 같은 집계 수치를 쓰고 불량 유형·조사 순위는 다시 조회하지 않음
+        var totals = repository.findTotals(resolvePeriod(request, role));
+        return new DashboardSummaryResponse("선택 기간에 %d건이 접수됐습니다. 원인 확정은 %d건이고, 확인이 필요한 재발 의심은 %d건입니다."
+                .formatted(totals.received(), totals.confirmed(), totals.recurrenceSuspected()));
+    }
+
+    private KoreaDateRange resolvePeriod(GetDashboardRequest request, Role role) {
+        RoleAccess.require(role, Role.QUALITY);
+        return KoreaDateRange.resolve(request.from(), request.to(), KoreaTime.today(appClock));
     }
 
     private Priority toPriority(Ranked ranked) {

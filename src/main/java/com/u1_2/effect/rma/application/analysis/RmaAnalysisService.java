@@ -3,8 +3,10 @@ package com.u1_2.effect.rma.application.analysis;
 import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.global.time.KoreaTime;
 import com.u1_2.effect.rma.domain.RmaErrorCode;
+import com.u1_2.effect.rma.domain.analysis.AnalysisResultStates;
 import com.u1_2.effect.rma.domain.analysis.RmaAnalysisRepository;
 import com.u1_2.effect.rma.presentation.analysis.dto.RmaAnalysisResponse;
+import com.u1_2.effect.rma.presentation.analysis.dto.RmaAnalysisResponse.CauseDecision;
 import com.u1_2.effect.user.domain.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,12 +27,12 @@ public class RmaAnalysisService {
     private final JsonMapper jsonMapper;
 
     public RmaAnalysisResponse getAnalysis(String rmaId, Role role) {
-        var snapshot = repository.findLatest(rmaId)
+        boolean quality = role == Role.QUALITY;
+        var snapshot = repository.findLatest(rmaId, quality)
                 .orElseThrow(() -> new ApiException(RmaErrorCode.RMA_NOT_FOUND));
         String state = snapshot.analysisState() == null ? "NOT_REQUESTED" : snapshot.analysisState();
-        boolean quality = role == Role.QUALITY;
         JsonNode progress = state.equals("RUNNING") ? read(snapshot.progress()) : null;
-        JsonNode result = state.equals("SUCCEEDED") || state.equals("PARTIAL") ? read(snapshot.result()) : null;
+        JsonNode result = AnalysisResultStates.hasResult(state) ? read(snapshot.result()) : null;
         JsonNode error = state.equals("FAILED") ? read(snapshot.error()) : null;
         JsonNode warnings = quality ? read(snapshot.warnings()) : null;
         JsonNode trace = quality ? read(snapshot.trace()) : null;
@@ -53,10 +55,13 @@ public class RmaAnalysisService {
             analysisId = null;
         }
 
+        // 품질 화면이 후보 순서 대신 실제 채택 코드를 기준으로 확정 원인을 표시함
+        var decision = snapshot.approvalStatus() == null ? null
+                : new CauseDecision(snapshot.approvalStatus(), snapshot.adoptedCauseCode());
         return new RmaAnalysisResponse(rmaId, analysisId, state, KoreaTime.inSeoul(snapshot.asOf()), snapshot.mode(),
                 progress, result, quality && trace == null ? jsonMapper.nullNode() : trace,
                 warnings == null ? jsonMapper.createArrayNode() : warnings, error, KoreaTime.inSeoul(snapshot.updatedAt()),
-                quality ? snapshot.langsmithRunId() : null);
+                quality ? snapshot.langsmithRunId() : null, decision);
     }
 
     private ObjectNode customerResult(JsonNode result) {
