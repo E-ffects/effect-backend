@@ -203,4 +203,4 @@ python3 scripts/staging_smoke.py --base-url https://staging.example.com \
 
 Docker가 실행 중이어야 PostgreSQL·Redis 통합 테스트가 동작합니다. 테스트 데이터와 첨부는 임시 환경을 사용합니다.
 
-작업 브랜치명, 한국어 커밋 제목, PR과 리뷰는 [백엔드 팀 규칙](docs/CONVENTION.md)을 따릅니다. `develop`에는 PR을 통해 변경을 합칩니다.
+작업 브랜치명, 한국어 커밋 제목, PR과 리뷰는 [백엔드 팀 규칙](docs/CONVENTION.md)을 따릅니다. `main`에는 PR을 통해 변경을 합치며, 머지하면 바로 배포됩니다.
