@@ -76,3 +76,15 @@ jobs:
           aws eks update-kubeconfig --name "$CLUSTER" --region "$AWS_REGION"
           kubectl -n "$NAMESPACE" apply -k deployment/k8s
           kubectl -n "$NAMESPACE" rollout status deployment/backend --timeout=300s
+
+      # 실패 원인을 Actions 로그에서 바로 볼 수 있게 남긴다 (Pod·로그·Event 조회 권한만 있음)
+      - name: Diagnose
+        if: failure()
+        run: |
+          kubectl -n "$NAMESPACE" get deploy,rs,pods -o wide || true
+          kubectl -n "$NAMESPACE" describe pods -l app.kubernetes.io/name=backend | tail -n 80 || true
+          kubectl -n "$NAMESPACE" get events --sort-by=.lastTimestamp | tail -n 30 || true
+          POD=$(kubectl -n "$NAMESPACE" get pods -l app.kubernetes.io/name=backend --sort-by=.metadata.creationTimestamp -o name | tail -n 1)
+          [ -n "$POD" ] || exit 0
+          kubectl -n "$NAMESPACE" logs "$POD" --tail=150 || true
+          kubectl -n "$NAMESPACE" logs "$POD" --previous --tail=150 || true
