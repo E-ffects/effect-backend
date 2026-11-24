@@ -1,4 +1,4 @@
-package com.u1_2.effect.rma.presentation.dto;
+package com.u1_2.effect.rma.presentation.intake.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
@@ -6,7 +6,7 @@ import java.util.List;
 public record RmaIntakeResponse(
         String rmaId, String intakeState, String csStatus, String qaStatus, Symptom symptom, Triage triage,
         List<String> followUpQuestions, Analysis analysis, List<Attachment> attachments,
-        @JsonInclude(JsonInclude.Include.NON_NULL) Failure error
+        @JsonInclude(JsonInclude.Include.NON_NULL) IntakeErrorResponse error
 ) {
     public record Symptom(String primaryLabel, String minorName, String majorName, String status, List<String> evidenceSpans) {
     }
@@ -20,8 +20,5 @@ public record RmaIntakeResponse(
     }
 
     public record Attachment(long attachmentId, String kind, String fileName) {
-    }
-
-    public record Failure(String code, String detail) {
     }
 }

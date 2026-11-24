@@ -1,4 +1,4 @@
-package com.u1_2.effect.rma.presentation.dto;
+package com.u1_2.effect.rma.presentation.intake.dto;
 
 import com.u1_2.effect.rma.domain.intake.DetectionStage;
 import jakarta.validation.constraints.NotBlank;

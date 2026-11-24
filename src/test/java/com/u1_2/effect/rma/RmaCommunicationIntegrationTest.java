@@ -1,7 +1,9 @@
 package com.u1_2.effect.rma;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -37,6 +39,60 @@ class RmaCommunicationIntegrationTest {
     @Autowired JdbcClient jdbc;
     @Autowired JwtProvider jwt;
     @Autowired JsonMapper mapper;
+
+    @Test
+    void 승인하거나_확인한_접수의_편집용_초안만_반환하고_저장은_기존_회신_API에서_한다() throws Exception {
+        String approved = seed("follow-up-approved", "CAUSE_DECIDED", "L3");
+        String confirmed = seed("follow-up-confirmed", "CAUSE_DECIDED", "L2");
+        insertFollowUpDecision(approved, "APPROVED", "L3");
+        insertFollowUpDecision(confirmed, "CONFIRMED", "L2");
+        detail(approved, Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.follow_up_draft_available").value(true))
+                .andExpect(jsonPath("$.content.approval_status").doesNotHaveJsonPath());
+        detail(confirmed, Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.follow_up_draft_available").value(true));
+        detail(approved, Role.QUALITY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.follow_up_draft_available").doesNotHaveJsonPath());
+
+        var response = followUpDraft(approved, Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.rma_id").value(approved))
+                .andExpect(jsonPath("$.content.analysis_id").value("ana-" + approved))
+                .andExpect(jsonPath("$.content.source").value("MANUAL"))
+                .andExpect(jsonPath("$.content.message_text", containsString("PCB-ECU6-A1")))
+                .andReturn().getResponse();
+        var draft = mapper.readTree(response.getContentAsByteArray()).path("content");
+        assertThat(draft.path("message_text").stringValue()).doesNotContain("OLE-02", "내부 검토 메모");
+        followUpDraft(confirmed, Role.CS).andExpect(status().isOk());
+        history(approved, Role.CS).andExpect(jsonPath("$.content.items").isEmpty());
+        assertThat(jdbc.sql("SELECT cs_status FROM pcb.rma_claim WHERE rma_id = :id")
+                .param("id", approved).query(String.class).single()).isEqualTo("OPEN");
+
+        var body = mapper.createObjectNode().put("message_text", draft.path("message_text").stringValue())
+                .put("source", draft.path("source").stringValue()).put("analysis_id", "ana-" + approved);
+        mvc.perform(post("/api/rmas/{id}/communications", approved).contextPath("/api").header("Authorization", token(Role.CS))
+                .contentType(MediaType.APPLICATION_JSON).content(body.toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.cs_status").value("RESPONDED"));
+    }
+
+    @Test
+    void 대기나_반려_상태와_권한이_없는_사용자는_후속_초안을_받을_수_없다() throws Exception {
+        String waiting = seed("follow-up-waiting", "ANALYZING", "L3");
+        String rejected = seed("follow-up-rejected", "ANALYZING", "L3");
+        insertFollowUpDecision(waiting, "WAITING", "L3");
+        insertFollowUpDecision(rejected, "REJECTED", "L3");
+        detail(waiting, Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.follow_up_draft_available").value(false));
+        detail(rejected, Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.follow_up_draft_available").value(false));
+        followUpDraft(waiting, Role.CS).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("FOLLOW_UP_DRAFT_NOT_READY"));
+        followUpDraft(rejected, Role.CS).andExpect(status().isConflict());
+        followUpDraft(waiting, Role.QUALITY).andExpect(status().isForbidden());
+        followUpDraft("missing", Role.CS).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RMA_NOT_FOUND"));
+        mvc.perform(post("/api/rmas/{id}/communications/follow-up-draft", waiting).contextPath("/api"))
+                .andExpect(status().isUnauthorized());
+    }
 
     @Test
     void CS_회신은_본문과_출처를_저장하고_접수를_응답완료로_바꾼다() throws Exception {
@@ -109,6 +165,8 @@ class RmaCommunicationIntegrationTest {
                 FROM pcb.service_action WHERE rma_item_id = 'ITEM-action' AND result = 'EXECUTED'
                 """).query().singleRow()).containsEntry("policy_version", "B2B-QA-2025")
                 .containsEntry("executed_at", "2025-12-31T09:00:00+09:00").containsEntry("board_qty", 7L);
+        actions(id, Role.CS, 1, 30).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.items[*].result", containsInAnyOrder("SCHEDULED", "EXECUTED")));
         recordMessage(id, MESSAGE, null, Role.CS).andExpect(jsonPath("$.content.cs_status").value("CLOSED"));
     }
 
@@ -121,8 +179,69 @@ class RmaCommunicationIntegrationTest {
                 .andExpect(jsonPath("$.content.cs_status").value("CLOSED"));
     }
 
+    @Test
+    void 모든_품목의_예약과_실행을_서울_시각으로_정렬하고_페이지를_나눈다() throws Exception {
+        String id = seed("action-history", "TRIAGED", "L2");
+        seed("action-history-other", "TRIAGED", "L2");
+        jdbc.sql("""
+                INSERT INTO pcb.rma_item VALUES ('ITEM-action-history-2', :id, NULL, NULL, NULL, 10, 1, 0, NULL, 'UNTRACED')
+                """).param("id", id).update();
+        jdbc.sql("""
+                INSERT INTO pcb.service_action VALUES
+                    ('H1', 'ITEM-action-history', 'CREDIT_NOTE', 'B2B-QA-2025',
+                        '2025-12-30T09:00:00+09:00', NULL, 2, 'SCHEDULED'),
+                    ('H2', 'ITEM-action-history-2', 'CREDIT_NOTE', 'B2B-QA-2025',
+                        '2025-12-29T12:00:00+09:00', '2025-12-30T15:00:00Z', 1, 'EXECUTED'),
+                    ('H3', 'ITEM-action-history-other', 'CREDIT_NOTE', 'B2B-QA-2025',
+                        '2025-12-31T11:00:00+09:00', NULL, 3, 'SCHEDULED')
+                """).update();
+
+        actions(id, Role.CS, 1, 1).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.rma_id").value(id))
+                .andExpect(jsonPath("$.content.total").value(2))
+                .andExpect(jsonPath("$.content.items[0].rma_item_id").value("ITEM-action-history-2"))
+                .andExpect(jsonPath("$.content.items[0].action_id").value("H2"))
+                .andExpect(jsonPath("$.content.items[0].executed_at").value("2025-12-31T00:00:00+09:00"));
+        actions(id, Role.QUALITY, 2, 1).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.page").value(2))
+                .andExpect(jsonPath("$.content.items[0].result").value("SCHEDULED"))
+                .andExpect(jsonPath("$.content.items[0].executed_at").value(nullValue()));
+        actions(id, Role.CS, 3, 1).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.total").value(2))
+                .andExpect(jsonPath("$.content.items").isEmpty());
+    }
+
+    @Test
+    void 처리_이력이_없는_접수와_존재하지_않는_접수를_구분한다() throws Exception {
+        String id = seed("empty-action-history", "TRIAGED", "L2");
+        actions(id, Role.CS, 1, 30).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.total").value(0))
+                .andExpect(jsonPath("$.content.items").isEmpty());
+        actions("missing", Role.QUALITY, 1, 30).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RMA_NOT_FOUND"));
+        actions(id, Role.QUALITY, 1, 101).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+        mvc.perform(get("/api/rmas/{id}/service-actions", id).contextPath("/api"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private ResultActions actions(String rmaId, Role role, int page, int size) throws Exception {
+        return mvc.perform(get("/api/rmas/{id}/service-actions", rmaId).contextPath("/api")
+                .header("Authorization", token(role)).param("page", String.valueOf(page)).param("size", String.valueOf(size)));
+    }
+
     private ResultActions history(String rmaId, Role role) throws Exception {
         return mvc.perform(get("/api/rmas/{id}/communications", rmaId).contextPath("/api")
+                .header("Authorization", token(role)));
+    }
+
+    private ResultActions followUpDraft(String rmaId, Role role) throws Exception {
+        return mvc.perform(post("/api/rmas/{id}/communications/follow-up-draft", rmaId).contextPath("/api")
+                .header("Authorization", token(role)));
+    }
+
+    private ResultActions detail(String rmaId, Role role) throws Exception {
+        return mvc.perform(get("/api/rmas/{id}", rmaId).contextPath("/api")
                 .header("Authorization", token(role)));
     }
 
@@ -170,5 +289,15 @@ class RmaCommunicationIntegrationTest {
                 INSERT INTO app.ai_analysis (analysis_id, rma_id, mode, analysis_state, created_at)
                 VALUES (:analysisId, :rmaId, 'B', 'SUCCEEDED', CURRENT_TIMESTAMP)
                 """).param("analysisId", analysisId).param("rmaId", rmaId).update();
+    }
+
+    private void insertFollowUpDecision(String rmaId, String status, String level) {
+        String analysisId = "ana-" + rmaId;
+        insertAnalysis(rmaId, analysisId);
+        jdbc.sql("""
+                INSERT INTO app.cause_decision (rma_id, analysis_id, approval_status, analysis_level, comment, decided_at)
+                VALUES (:id, :analysisId, :status, :level, '내부 검토 메모 OLE-02', CURRENT_TIMESTAMP)
+                """).param("id", rmaId).param("analysisId", analysisId).param("status", status)
+                .param("level", level).update();
     }
 }

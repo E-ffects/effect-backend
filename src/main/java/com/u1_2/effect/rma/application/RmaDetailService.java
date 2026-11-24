@@ -4,9 +4,11 @@ import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.global.time.KoreaTime;
 import com.u1_2.effect.recurrence.domain.RecurrenceDecisionRepository;
 import com.u1_2.effect.report.domain.ReportRepository;
+import com.u1_2.effect.rma.application.intake.IntakeFeedback;
 import com.u1_2.effect.rma.domain.RmaDetailRepository.Claim;
 import com.u1_2.effect.rma.domain.RmaDetailRepository;
 import com.u1_2.effect.rma.domain.RmaErrorCode;
+import com.u1_2.effect.rma.domain.communication.RmaCommunicationRepository;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.Customer;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.CustomerTriage;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.Item;
@@ -32,6 +34,7 @@ import tools.jackson.databind.json.JsonMapper;
 public class RmaDetailService {
 
     private final RmaDetailRepository rmaDetailRepository;
+    private final RmaCommunicationRepository communications;
     private final ReportRepository reportRepository;
     private final RecurrenceDecisionRepository recurrenceDecisions;
     private final JsonMapper jsonMapper;
@@ -61,6 +64,11 @@ public class RmaDetailService {
         TriageProposal proposal = claim.triageProposal() == null ? null
                 : jsonMapper.readValue(claim.triageProposal(), TriageProposal.class);
         var recurrence = quality ? recurrenceDecisions.find(rmaId).orElse(null) : null;
+        // CS에는 내부 판정 대신 초안 API와 같은 조건으로 계산한 버튼 사용 가능 여부만 줌
+        Boolean followUpDraftAvailable = quality ? null : communications.findFollowUpContext(rmaId).isPresent();
+        // 접수 화면을 다시 열어도 현재 상태에 해당하는 보충 질문이나 접수 실패 안내를 복원함
+        var feedback = IntakeFeedback.fromStored(jsonMapper, claim.followUpQuestions(),
+                claim.intakeErrorCode(), claim.intakeErrorDetail());
         return new RmaDetailResponse(
                 claim.rmaId(), claim.openedAt(), claim.occurredAt(), claim.rawText(), claim.reportedPartNo(),
                 claim.reportedLotNo(), claim.reportedDateCode(), claim.detectionStage(), claim.csStatus(),
@@ -68,7 +76,8 @@ public class RmaDetailService {
                 quality ? claim.qaStatus() : null, quality ? claim.approvalStatus() : null,
                 claim.intakeState(), claim.analysisState(), quality ? reportStatus(rmaId) : null,
                 recurrence == null ? null : recurrence.decision(), recurrence == null ? null : recurrence.decidedBy(),
-                recurrence == null ? null : KoreaTime.inSeoul(recurrence.decidedAt()));
+                recurrence == null ? null : KoreaTime.inSeoul(recurrence.decidedAt()), followUpDraftAvailable,
+                feedback.questions(), feedback.error());
     }
 
     private ReportStatus reportStatus(String rmaId) {

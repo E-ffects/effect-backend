@@ -35,7 +35,8 @@ class Api:
         self.timeout = timeout
         self.opener = build_opener(NoRedirect())
 
-    def request(self, path, *, http_method="GET", token=None, payload=None, headers=None, raw=False, expected=200):
+    def request(self, path, *, http_method="GET", token=None, payload=None, headers=None, raw=False,
+                expected=200, expected_code=None):
         request_headers = dict(headers or {})
         if token:
             request_headers["Authorization"] = f"Bearer {token}"
@@ -50,8 +51,6 @@ class Api:
         except HTTPError as error:
             with error:
                 status, body = error.code, error.read()
-            if status == expected and status >= 400:
-                return None
         except (URLError, TimeoutError, OSError) as error:
             raise CheckError(f"{endpoint}: 연결 실패 ({type(error).__name__})") from None
         if status != expected:
@@ -61,11 +60,18 @@ class Api:
             return body
         try:
             envelope = json.loads(body)
-            if isinstance(envelope, dict) and envelope.get("code") == "SUCCESS" and "content" in envelope:
-                return envelope["content"]
         except ValueError:
-            pass
-        raise CheckError(f"{endpoint}: Spring 공통 응답 형식 확인 실패")
+            envelope = None
+        require(isinstance(envelope, dict) and isinstance(envelope.get("message"), str) and "content" in envelope,
+                f"{endpoint}: Spring 공통 응답 형식 확인 실패")
+        if status >= 400:
+            # 프록시의 같은 HTTP 상태나 다른 업무 오류를 통과시키지 않음
+            actual_code = error_code(body)
+            require(actual_code == expected_code and envelope["content"] is None,
+                    f"{endpoint}: HTTP {status}, {actual_code} (예상 코드: {expected_code})")
+        else:
+            require(envelope.get("code") == "SUCCESS", f"{endpoint}: 성공 응답 코드 확인 실패")
+        return envelope["content"]
 
 
 def error_code(body):
@@ -94,22 +100,52 @@ def rma_path(rma_id):
 
 
 def preflight(api, sample_id):
-    api.request("/api/auth/me", expected=401)
+    api.request("/api/auth/me", expected=401, expected_code="UNAUTHORIZED")
     cs, quality = login(api, "CS"), login(api, "QUALITY")
     print("PASS 로그인 및 CS·QUALITY 역할", flush=True)
-    health = api.request("/api/ai/health", token=cs)
-    require(health["available"] and health.get("provider") != "mock", "실제 FastAPI 사용 가능 상태를 확인하지 못함")
     meta = api.request("/api/meta", token=cs)
     require(meta["customers"] and meta["products"], "기준 고객사 또는 제품이 없음")
-    print("PASS FastAPI 상태 및 v5 기준 정보", flush=True)
+    print("PASS v5 기준 정보", flush=True)
     sample = api.request(rma_path(sample_id), token=quality)
     require(sample["rma_id"] == sample_id, "검사용 케이스를 찾지 못함")
     cs_sample = api.request(rma_path(sample_id), token=cs)
     require("qa_status" not in cs_sample and "approval_status" not in cs_sample, "CS에 내부 판정 상태가 노출됨")
-    api.request("/api/approvals", token=cs, expected=403)
+    api.request("/api/approvals", token=cs, expected=403, expected_code="ACCESS_DENIED")
     api.request("/api/approvals?size=1", token=quality)
-    print(f"PASS 기존 케이스 {sample_id} 조회 및 역할 제한", flush=True)
+    api.request("/api/approvals?size=101", token=quality, expected=400, expected_code="INVALID_INPUT")
+    missing_id = f"STAGING-SMOKE-MISSING-{uuid.uuid4().hex}"
+    api.request(rma_path(missing_id), token=quality, expected=404, expected_code="RMA_NOT_FOUND")
+    print(f"PASS 기존 케이스 {sample_id} 조회 및 공통 에러 코드 400·401·403·404", flush=True)
     return cs, quality, sample
+
+
+def verify_ai_available(api, cs):
+    health = api.request("/api/ai/health", token=cs)
+    require(health["available"] and health.get("provider") != "mock", "실제 FastAPI 사용 가능 상태를 확인하지 못함")
+    print("PASS 실제 FastAPI 상태", flush=True)
+
+
+def verify_dashboard_reads(api, cs, quality):
+    for view, allowed, denied in (("cs", cs, quality), ("quality", quality, cs)):
+        path = f"/api/dashboard/{view}"
+        dashboard = api.request(path, token=allowed)
+        require(isinstance(dashboard.get("kpis"), dict) and bool(dashboard["kpis"]), f"{path}: KPI 응답 없음")
+        summary_path = f"{path}/summary"
+        summary = api.request(summary_path, token=allowed).get("summary")
+        require(isinstance(summary, str) and bool(summary.strip()), f"{summary_path}: 요약 응답 없음")
+        api.request(summary_path, token=denied, expected=403, expected_code="ACCESS_DENIED")
+    print("PASS CS·QUALITY 대시보드 KPI·요약 및 역할 제한", flush=True)
+
+
+def verify_ai_outage(api, sample_id):
+    cs = login(api, "CS")
+    # 장애 점검은 조회만 실행함. FastAPI의 중단·재시작은 환경 담당자가 제어함
+    health = api.request("/api/ai/health", token=cs)
+    require(health.get("available") is False, "FastAPI 사용 불가 상태가 표시되지 않음")
+    detail = api.request(rma_path(sample_id), token=cs)
+    require(detail["rma_id"] == sample_id, "AI 장애 중 저장된 접수 조회 실패")
+    api.request(f"{rma_path(sample_id)}/similar", token=cs, expected=503, expected_code="AI_UNAVAILABLE")
+    print(f"PASS AI 장애 상태·{sample_id} 조회 유지·유사 사례 503 AI_UNAVAILABLE", flush=True)
 
 
 def multipart(fields, raw):
@@ -188,20 +224,32 @@ def run_e2e(api, cs, quality, sample, timeout):
     candidate = next((row for row in result["result"]["cause_candidates"] if row.get("cause_code")), None)
     require(candidate, "채택할 분석 원인 후보가 없음")
     cs_analysis = api.request(f"{path}/analysis", token=cs)
-    require("cause_candidates" not in cs_analysis["result"], "CS 응답에 내부 원인 후보가 노출됨")
+    require("cause_candidates" not in cs_analysis["result"] and "cause_decision" not in cs_analysis,
+            "CS 응답에 내부 원인 후보 또는 판정이 노출됨")
     print(f"PASS QA 판정 및 분석 {result['analysis_state']}", flush=True)
     # 원인 판정은 분석 시작 때 등급 대신 상세의 최신 QA 등급을 기준으로 함
     level = api.request(path, token=quality)["triage"]["analysis_level"]
     require(level in {"L1", "L2", "L3"}, "QA 등급 확인 실패")
+    draft_path = f"{path}/communications/follow-up-draft"
+    api.request(draft_path, http_method="POST", token=cs, expected=409, expected_code="FOLLOW_UP_DRAFT_NOT_READY")
     decision = "APPROVED" if level == "L3" else "CONFIRMED"
     recorded = api.request(f"{path}/cause-decision", http_method="POST", token=quality, payload={
         "analysis_id": analysis_id, "decision": decision, "comment": "[STAGING SMOKE] 테스트 원인 판정",
         "candidates": [{"cause_code": candidate["cause_code"], "status": "ADOPTED"}],
     })
     require(recorded["approval_status"] == decision, "원인 판정 저장 실패")
+    saved_decision = api.request(f"{path}/analysis", token=quality)["cause_decision"]
+    require(saved_decision["approval_status"] == decision
+            and saved_decision["adopted_cause_code"] == candidate["cause_code"], "채택한 원인 조회 실패")
     print(f"PASS 원인 판정 {decision}", flush=True)
+    draft = api.request(draft_path, http_method="POST", token=cs)
+    require(draft["rma_id"] == rma_id and draft["analysis_id"] == analysis_id and bool(draft["message_text"].strip()),
+            "2차 회신 초안이 현재 접수·분석과 일치하지 않음")
+    history = api.request(f"{path}/communications", token=cs)["items"]
+    require(not any(row["author_role"] == "CS" for row in history), "초안 조회만으로 CS 회신이 저장됨")
+    print("PASS 원인 확정 전 409 및 확정 후 편집용 회신 초안", flush=True)
     reply = api.request(f"{path}/communications", http_method="POST", token=cs, payload={
-        "analysis_id": analysis_id, "source": "MANUAL", "message_text": "[STAGING SMOKE] 테스트 반품 처리 결과를 안내드립니다.",
+        "analysis_id": analysis_id, "source": draft["source"], "message_text": f"[STAGING SMOKE] {draft['message_text']}",
     })
     require(reply["cs_status"] == "RESPONDED", "CS 회신 저장 실패")
     action = api.request(f"{path}/service-action", http_method="POST", token=cs, payload={
@@ -222,10 +270,13 @@ def verify_case(api, quality, rma_id, expected_digest):
     require(analysis["analysis_state"] in {"SUCCEEDED", "PARTIAL"} and analysis["result"], "저장된 분석 결과 없음")
     messages = api.request(f"{path}/communications", token=quality)["items"]
     require(any(row["author_role"] == "CS" for row in messages), "저장된 CS 회신 없음")
+    actions = api.request(f"{path}/service-actions", token=quality)
+    require(actions["rma_id"] == rma_id and any(row["result"] == "EXECUTED" and row["executed_at"]
+                                               for row in actions["items"]), "저장된 처리 실행 이력 없음")
     digest = hashlib.sha256(attachment_bytes(api, path, quality)).hexdigest()
     if expected_digest:
         require(digest == expected_digest, "저장된 원문 해시가 다름")
-    print(f"PASS {rma_id} 종료·원인 판정·분석 결과·CS 회신·원문 조회", flush=True)
+    print(f"PASS {rma_id} 종료·원인 판정·분석 결과·CS 회신·처리 이력·원문 조회", flush=True)
 
 
 def main():
@@ -235,6 +286,8 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--e2e", action="store_true", help="합성 테스트 RMA 한 건을 생성하고 종료함")
     mode.add_argument("--verify-rma", help="앞서 종료한 테스트 RMA를 다시 읽음")
+    mode.add_argument("--expect-ai-outage", action="store_true", help="이미 중단된 FastAPI의 영향 범위를 읽기 점검함")
+    mode.add_argument("--core-only", action="store_true", help="FastAPI 없이 Spring의 로그인·조회·대시보드를 점검함")
     parser.add_argument("--attachment-sha256", help="앞서 출력된 원문 해시")
     parser.add_argument("--analysis-timeout", type=int, default=60)
     args = parser.parse_args()
@@ -249,12 +302,20 @@ def main():
                 args.verify_rma and re.fullmatch(r"[0-9a-f]{64}", args.attachment_sha256)),
                 "원문 해시는 --verify-rma와 함께 64자리 소문자 16진수로 지정하세요.")
         api = Api(args.base_url.rstrip("/"), timeout=30)
-        cs, quality, sample = preflight(api, args.sample_rma)
-        if args.e2e:
-            run_e2e(api, cs, quality, sample, args.analysis_timeout)
-        elif args.verify_rma:
-            verify_case(api, quality, args.verify_rma, args.attachment_sha256)
-        print("스테이징 점검 통과", flush=True)
+        if args.expect_ai_outage:
+            verify_ai_outage(api, args.sample_rma)
+        else:
+            cs, quality, sample = preflight(api, args.sample_rma)
+            if args.core_only:
+                # AI가 준비되기 전에도 Spring·DB 조회와 화면이 쓰는 집계 경로를 점검함
+                verify_dashboard_reads(api, cs, quality)
+            else:
+                verify_ai_available(api, cs)
+                if args.e2e:
+                    run_e2e(api, cs, quality, sample, args.analysis_timeout)
+                elif args.verify_rma:
+                    verify_case(api, quality, args.verify_rma, args.attachment_sha256)
+        print("Spring 핵심 API 점검 통과" if args.core_only else "스테이징 점검 통과", flush=True)
         return 0
     except CheckError as error:
         print(f"FAIL {error}", file=sys.stderr)

@@ -18,7 +18,7 @@ public class AlertRepository {
             """;
 
     private static final String ITEM = """
-            SELECT a.id, a.type, a.rma_id, a.corrective_action_id, a.target_label, a.reason, a.check_items,
+            SELECT a.id, a.type, a.rma_id, a.corrective_action_id, a.pattern_id, a.target_label, a.reason, a.check_items,
                    a.created_at, s.read_at IS NOT NULL AS read, coalesce(s.starred, false) AS starred
             """ + VISIBLE;
 
@@ -83,7 +83,7 @@ public class AlertRepository {
     public enum Change { READ, DELETE, STAR, UNSTAR }
 
     public record Item(
-            long id, String type, String rmaId, String correctiveActionId, String targetLabel,
+            long id, String type, String rmaId, String correctiveActionId, String patternId, String targetLabel,
             String reason, String checkItems, OffsetDateTime createdAt, boolean read, boolean starred
     ) {
     }

@@ -227,6 +227,89 @@ class IntakeRegistrationIntegrationTest {
     }
 
     @Test
+    void 고객_보충_회신을_한_번_저장하고_원문을_유지한_채_재분류한다() throws Exception {
+        String rmaId = intakeNeedingInfo("supplement-success");
+        String replyText = "ICT 검사에서 단락이 발견됐습니다.";
+
+        reply(rmaId, replyText, "supplement-1", Role.QUALITY).andExpect(status().isForbidden());
+        reply(rmaId, " ", "supplement-1", Role.CS).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+        reply(rmaId, replyText, "supplement-1", Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.rma_id").value(rmaId))
+                .andExpect(jsonPath("$.content.intake_state").value("ACCEPTED"))
+                .andExpect(jsonPath("$.content.cs_status").value("OPEN"))
+                .andExpect(jsonPath("$.content.attachments").isNotEmpty());
+        reply(rmaId, replyText, "supplement-1", Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.intake_state").value("ACCEPTED"));
+        reply(rmaId, "다른 회신", "supplement-1", Role.CS).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INTAKE_REPLY_REQUEST_CONFLICT"));
+        reply(rmaId, replyText, "supplement-2", Role.CS).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("INTAKE_NOT_NEEDS_INFO"));
+        reply("RMA-UNKNOWN", replyText, "supplement-2", Role.CS).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("RMA_NOT_FOUND"));
+
+        assertThat(jdbcClient.sql("""
+                SELECT c.raw_text, m.message_text, m.author_role, m.audience, meta.source
+                FROM pcb.rma_claim c JOIN pcb.communication m ON m.rma_id = c.rma_id
+                JOIN app.communication_meta meta ON meta.message_id = m.message_id WHERE c.rma_id = :id
+                """).param("id", rmaId).query().singleRow()).containsEntry("raw_text", "정보 부족")
+                .containsEntry("message_text", replyText).containsEntry("author_role", "customer")
+                .containsEntry("audience", "CS").containsEntry("source", "CUSTOMER_SUPPLEMENT");
+        assertThat(jdbcClient.sql("SELECT COUNT(*) FROM app.ai_analysis WHERE rma_id = :id")
+                .param("id", rmaId).query(Long.class).single()).isEqualTo(1);
+    }
+
+    @Test
+    void 분류가_실패해도_저장한_보충_회신을_재처리에서_쓴다() throws Exception {
+        String rmaId = intakeNeedingInfo("supplement-fail");
+        mockMvc.perform(get("/api/rmas/{id}", rmaId).contextPath("/api").header("Authorization", token(Role.CS)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.follow_up_questions[0]").value("불량이 발생한 공정과 확인한 증상을 알려주세요."))
+                .andExpect(jsonPath("$.content.error").doesNotHaveJsonPath());
+        String first = "공정 정보 부족";
+        String second = "ICT 검사에서 단락이 발생했고 불량은 10개입니다.";
+        reply(rmaId, first, "first", Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.intake_state").value("NEEDS_INFO"));
+        String combined = "정보 부족\n\n[고객 보충 회신]\n" + first + "\n\n[고객 보충 회신]\n" + second;
+        doThrow(new ApiException(AiErrorCode.AI_UNAVAILABLE)).doCallRealMethod().when(aiClient)
+                .classify(argThat(input -> input != null && input.rmaId().equals(rmaId) && input.rawText().equals(combined)));
+
+        reply(rmaId, second, "second", Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.intake_state").value("FAILED"))
+                .andExpect(jsonPath("$.content.error.code").value("AI_UNAVAILABLE"));
+        mockMvc.perform(get("/api/rmas/{id}", rmaId).contextPath("/api").header("Authorization", token(Role.CS)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.error.code").value("AI_UNAVAILABLE"))
+                .andExpect(jsonPath("$.content.error.detail").value("분류 또는 QA 판정에 필요한 AI 응답을 받지 못했습니다."))
+                .andExpect(jsonPath("$.content.follow_up_questions").doesNotHaveJsonPath());
+        reply(rmaId, second, "second", Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.intake_state").value("FAILED"));
+        mockMvc.perform(post("/api/rmas/{id}/intake/retry", rmaId)
+                        .contextPath("/api").header("Authorization", token(Role.CS)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.intake_state").value("ACCEPTED"));
+        mockMvc.perform(get("/api/rmas/{id}", rmaId).contextPath("/api").header("Authorization", token(Role.CS)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.error").doesNotHaveJsonPath())
+                .andExpect(jsonPath("$.content.follow_up_questions").doesNotHaveJsonPath());
+        assertThat(jdbcClient.sql("SELECT COUNT(*) FROM app.communication_meta WHERE rma_id = :id")
+                .param("id", rmaId).query(Long.class).single()).isEqualTo(2);
+    }
+
+    private String intakeNeedingInfo(String key) throws Exception {
+        var response = mockMvc.perform(intake("정보 부족", key, Role.CS))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.intake_state").value("NEEDS_INFO"))
+                .andReturn().getResponse();
+        return jsonMapper.readTree(response.getContentAsByteArray()).at("/content/rma_id").stringValue();
+    }
+
+    private ResultActions reply(String rmaId, String messageText, String key, Role role) throws Exception {
+        return mockMvc.perform(post("/api/rmas/{id}/intake/reply", rmaId)
+                .contextPath("/api").header("Authorization", token(role)).header("Idempotency-Key", key)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(jsonMapper.createObjectNode().put("message_text", messageText).toString()));
+    }
+
+    @Test
     void AI_장애가_나도_접수와_완료한_판정이_남는다() throws Exception {
         doThrow(new ApiException(AiErrorCode.AI_UNAVAILABLE)).when(aiClient)
                 .classify(argThat(input -> input != null && input.rawText().equals("분류 장애")));
