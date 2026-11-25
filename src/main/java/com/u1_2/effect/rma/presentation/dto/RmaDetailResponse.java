@@ -30,7 +30,8 @@ public record RmaDetailResponse(
         @JsonInclude(JsonInclude.Include.NON_NULL) ReportStatus report,
         @JsonInclude(JsonInclude.Include.NON_NULL) RecurrenceDecision recurrenceDecision,
         @JsonInclude(JsonInclude.Include.NON_NULL) String decidedBy,
-        @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime decidedAt
+        @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime decidedAt,
+        boolean followUpDraftAvailable
 ) {
     public record ReportStatus(boolean exists, boolean reviewed) {
     }

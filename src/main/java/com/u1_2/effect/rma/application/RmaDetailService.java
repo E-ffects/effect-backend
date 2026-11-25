@@ -7,6 +7,7 @@ import com.u1_2.effect.report.domain.ReportRepository;
 import com.u1_2.effect.rma.domain.RmaDetailRepository.Claim;
 import com.u1_2.effect.rma.domain.RmaDetailRepository;
 import com.u1_2.effect.rma.domain.RmaErrorCode;
+import com.u1_2.effect.rma.domain.review.CauseDecisionRepository;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.Customer;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.CustomerTriage;
 import com.u1_2.effect.rma.presentation.dto.RmaDetailResponse.Item;
@@ -34,6 +35,7 @@ public class RmaDetailService {
     private final RmaDetailRepository rmaDetailRepository;
     private final ReportRepository reportRepository;
     private final RecurrenceDecisionRepository recurrenceDecisions;
+    private final CauseDecisionRepository causeDecisions;
     private final JsonMapper jsonMapper;
 
     public RmaDetailResponse getDetail(String rmaId, Role role) {
@@ -68,7 +70,8 @@ public class RmaDetailService {
                 quality ? claim.qaStatus() : null, quality ? claim.approvalStatus() : null,
                 claim.intakeState(), claim.analysisState(), quality ? reportStatus(rmaId) : null,
                 recurrence == null ? null : recurrence.decision(), recurrence == null ? null : recurrence.decidedBy(),
-                recurrence == null ? null : KoreaTime.inSeoul(recurrence.decidedAt()));
+                recurrence == null ? null : KoreaTime.inSeoul(recurrence.decidedAt()),
+                causeDecisions.findAdopted(rmaId).isPresent());
     }
 
     private ReportStatus reportStatus(String rmaId) {

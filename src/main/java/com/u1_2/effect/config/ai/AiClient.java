@@ -25,6 +25,12 @@ public interface AiClient {
 
     boolean refreshCase(CaseRefreshRequest request);
 
+    /** QA가 승인·확인한 원인으로 2차 회신 초안을 만듦. 원인명 없이 범주만 쓴 고객용 문안을 돌려줌. */
+    FollowUp followUp(String rmaId, String causeCode);
+
+    record FollowUp(String customerReply) {
+    }
+
     record Health(boolean available, String provider, String status, String db, String llm) {
     }
 

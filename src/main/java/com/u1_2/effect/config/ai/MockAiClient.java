@@ -119,6 +119,11 @@ public class MockAiClient implements AiClient {
         return true;
     }
 
+    @Override
+    public FollowUp followUp(String rmaId, String causeCode) {
+        return new FollowUp("원인 분석이 끝났습니다. 확인된 원인에 따라 처리를 진행하며, 진행 상황을 회신드리겠습니다.");
+    }
+
     private record Job(String rmaId, String mode, long claimedDefectQty, boolean noServiceHistory,
                        AtomicInteger polls) {
     }

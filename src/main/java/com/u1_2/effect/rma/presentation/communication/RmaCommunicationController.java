@@ -7,6 +7,7 @@ import com.u1_2.effect.rma.application.communication.RmaCommunicationService;
 import com.u1_2.effect.rma.presentation.communication.dto.CreateRmaCommunicationRequest;
 import com.u1_2.effect.rma.presentation.communication.dto.CreateRmaServiceActionRequest;
 import com.u1_2.effect.rma.presentation.communication.dto.RmaCommunicationResponse;
+import com.u1_2.effect.rma.presentation.communication.dto.RmaFollowUpDraftResponse;
 import com.u1_2.effect.rma.presentation.communication.dto.RmaCommunicationResponse.History;
 import com.u1_2.effect.rma.presentation.communication.dto.RmaServiceActionResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -39,6 +40,14 @@ public class RmaCommunicationController {
     @GetMapping("/communications")
     public ResponseEntity<ResponseDto<History>> findHistory(@PathVariable String rmaId, @CurrentUser AuthUser user) {
         return ResponseEntity.ok(ResponseDto.ofSuccess(service.findHistory(rmaId, user.role())));
+    }
+
+    @Operation(summary = "2차 회신 초안 생성")
+    @PostMapping("/communications/follow-up-draft")
+    public ResponseEntity<ResponseDto<RmaFollowUpDraftResponse>> followUpDraft(
+            @PathVariable String rmaId, @CurrentUser AuthUser user
+    ) {
+        return ResponseEntity.ok(ResponseDto.ofSuccess(service.createFollowUpDraft(rmaId, user.role())));
     }
 
     @Operation(summary = "고객 처리 예약 또는 실행 결과 저장")

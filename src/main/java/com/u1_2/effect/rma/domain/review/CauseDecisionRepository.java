@@ -23,6 +23,15 @@ public class CauseDecisionRepository {
                 """.formatted(RmaHistoryOrder.ANALYSIS)).param("rmaId", rmaId).query(Target.class).optional();
     }
 
+    /** 승인·확인된 가장 최근 판정. 채택한 후보가 있는 후보 JSON과 분석 번호를 돌려줌. */
+    public Optional<Adopted> findAdopted(String rmaId) {
+        return jdbcClient.sql("""
+                SELECT analysis_id, candidates_json::text AS candidates FROM app.cause_decision
+                WHERE rma_id = :rmaId AND approval_status IN ('APPROVED', 'CONFIRMED')
+                ORDER BY decided_at DESC, id DESC LIMIT 1
+                """).param("rmaId", rmaId).query(Adopted.class).optional();
+    }
+
     public void save(Decision row) {
         // 승인·확인과 사례 갱신 예약을 같이 저장해 커밋 직후 서버가 재시작해도 작업이 남음
         jdbcClient.sql("""
@@ -64,6 +73,9 @@ public class CauseDecisionRepository {
     }
 
     public record Target(String analysisId, String result, String approvalStatus, String analysisLevel) {
+    }
+
+    public record Adopted(String analysisId, String candidates) {
     }
 
     public record Decision(String rmaId, String analysisId, String status, String level, String candidates,
