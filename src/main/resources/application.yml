@@ -87,6 +87,9 @@ ai:
   base-url: ${AI_BASE_URL}
 
 app:
+  # 날짜는 PCB 데이터 기준일(v6: 2026-12-31)로 고정하고 시각은 실제로 흐름
+  clock:
+    date: ${APP_CLOCK_DATE:2026-12-31}
   attachments:
     s3:
       bucket: ${APP_ATTACHMENTS_S3_BUCKET}
