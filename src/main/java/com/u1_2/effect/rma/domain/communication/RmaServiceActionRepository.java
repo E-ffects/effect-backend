@@ -4,12 +4,11 @@ import com.u1_2.effect.global.dto.PageParameters;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 @Repository
-@RequiredArgsConstructor
 public class RmaServiceActionRepository {
 
     private static final String FROM_CLAIM = """
@@ -19,6 +18,14 @@ public class RmaServiceActionRepository {
             """;
 
     private final JdbcClient jdbcClient;
+    // 처리방안 정책 버전은 적재된 PCB 데이터 버전을 따름 (v5: B2B-QA-2025, v6: B2B-QA-2026)
+    private final String policyVersion;
+
+    public RmaServiceActionRepository(JdbcClient jdbcClient,
+                                      @Value("${app.service-action.policy-version}") String policyVersion) {
+        this.jdbcClient = jdbcClient;
+        this.policyVersion = policyVersion;
+    }
 
     public List<ActionRow> findHistory(String rmaId, PageParameters paging) {
         // 모든 품목의 기록을 합치고 실행된 기록은 실행 시각, 예약은 결정 시각을 기준으로 정렬함
@@ -46,8 +53,17 @@ public class RmaServiceActionRepository {
         jdbcClient.sql("""
                 INSERT INTO pcb.service_action (action_id, rma_item_id, action_type, policy_version,
                     decided_at, executed_at, board_qty, result)
-                VALUES (:actionId, :itemId, :actionType, 'B2B-QA-2025', :decidedAt, :executedAt, :boardQty, :result)
-                """).paramSource(action).update();
+                VALUES (:actionId, :itemId, :actionType, :policyVersion, :decidedAt, :executedAt, :boardQty, :result)
+                """)
+                .param("actionId", action.actionId())
+                .param("itemId", action.itemId())
+                .param("actionType", action.actionType())
+                .param("policyVersion", policyVersion)
+                .param("decidedAt", action.decidedAt())
+                .param("executedAt", action.executedAt())
+                .param("boardQty", action.boardQty())
+                .param("result", action.result())
+                .update();
     }
 
     public record ActionRow(

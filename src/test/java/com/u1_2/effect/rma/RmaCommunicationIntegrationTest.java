@@ -163,7 +163,7 @@ class RmaCommunicationIntegrationTest {
         assertThat(jdbc.sql("""
                 SELECT result, policy_version, executed_at, board_qty
                 FROM pcb.service_action WHERE rma_item_id = 'ITEM-action' AND result = 'EXECUTED'
-                """).query().singleRow()).containsEntry("policy_version", "B2B-QA-2025")
+                """).query().singleRow()).containsEntry("policy_version", "B2B-QA-2026")
                 .containsEntry("executed_at", "2025-12-31T09:00:00+09:00").containsEntry("board_qty", 7L);
         actions(id, Role.CS, 1, 30).andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.items[*].result", containsInAnyOrder("SCHEDULED", "EXECUTED")));
