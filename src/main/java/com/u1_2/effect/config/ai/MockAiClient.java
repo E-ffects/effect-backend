@@ -120,6 +120,12 @@ public class MockAiClient implements AiClient {
         return true;
     }
 
+    @Override
+    public FollowUp followUp(String rmaId, String causeCode) {
+        // 목업에는 후속 그래프가 없어 Spring 기본 문안(MANUAL)을 쓰게 함
+        throw new AiUnavailableException();
+    }
+
     private record Job(String rmaId, String mode, long claimedDefectQty, boolean noServiceHistory,
                        AtomicInteger polls) {
     }

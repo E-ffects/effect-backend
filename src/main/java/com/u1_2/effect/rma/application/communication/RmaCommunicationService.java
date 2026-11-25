@@ -1,5 +1,6 @@
 package com.u1_2.effect.rma.application.communication;
 
+import com.u1_2.effect.config.ai.AiClient;
 import com.u1_2.effect.config.jwt.AuthUser;
 import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.global.exception.CommonErrorCode;
@@ -22,9 +23,11 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -35,6 +38,7 @@ public class RmaCommunicationService {
     private final RmaAnalysisRepository analysisRepository;
     private final AuthService authService;
     private final Clock appClock;
+    private final AiClient aiClient;
 
     public RmaFollowUpDraftResponse createFollowUpDraft(String rmaId, Role role) {
         RoleAccess.require(role, Role.CS);
@@ -51,6 +55,15 @@ public class RmaCommunicationService {
 
                 감사합니다.
                 """.formatted(rmaId, context.reportedPartNo()).strip();
+        if (context.causeCode() != null) {
+            try {
+                // 승인된 원인으로 AI 후속 그래프가 고객용 문안을 씀. 원인은 범주로만 쓰고 처리방안은 한글명만 씀
+                String drafted = aiClient.followUp(rmaId, context.causeCode()).customerReply();
+                return new RmaFollowUpDraftResponse(rmaId, context.analysisId(), drafted, Source.AI_DRAFT);
+            } catch (RuntimeException exception) {
+                log.warn("2차 회신 초안을 AI로 만들지 못해 기본 문안을 씀. rmaId={}", rmaId);
+            }
+        }
         return new RmaFollowUpDraftResponse(rmaId, context.analysisId(), messageText, Source.MANUAL);
     }
 

@@ -128,6 +128,17 @@ public class HttpAiClient implements AiClient {
         return result;
     }
 
+    @Override
+    public FollowUp followUp(String rmaId, String causeCode) {
+        // 버튼 호출이라 응답을 바로 받음. LLM 한 번을 기다릴 수 있어 분류와 같은 제한 시간을 씀
+        var body = successBody(send(new FollowUpRequest(rmaId, causeCode), CLASSIFY_TIMEOUT, "followups"));
+        String reply = body.path("result").path("customer_reply").asString("");
+        if (reply.isBlank()) {
+            throw new AiUnavailableException();
+        }
+        return new FollowUp(reply);
+    }
+
     private boolean validSimilarCase(SimilarCase item) {
         return item != null && item.rmaId() != null && item.openedAt() != null && item.similarity() != null
                 && Double.isFinite(item.similarity()) && item.similarity() >= 0 && item.similarity() <= 1
@@ -219,6 +230,9 @@ public class HttpAiClient implements AiClient {
     }
 
     private record ClaimRequest(String rmaId) {
+    }
+
+    private record FollowUpRequest(String rmaId, String causeCode) {
     }
 
     private record StartRequest(String rmaId, Options options) {

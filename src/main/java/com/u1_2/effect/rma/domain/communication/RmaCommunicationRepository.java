@@ -64,7 +64,9 @@ public class RmaCommunicationRepository {
     public Optional<FollowUpContext> findFollowUpContext(String rmaId) {
         // 승인 또는 확인을 마친 같은 접수의 분석만 연결하고 공개 가능한 품번만 가져옴
         return jdbcClient.sql("""
-                SELECT c.reported_part_no, d.analysis_id
+                SELECT c.reported_part_no, d.analysis_id,
+                    (SELECT COALESCE(x ->> 'cause_code', x ->> 'causeCode') FROM jsonb_array_elements(d.candidates_json) x
+                     WHERE x ->> 'status' = 'ADOPTED' LIMIT 1) AS cause_code
                 FROM pcb.rma_claim c
                 JOIN app.cause_decision d ON d.rma_id = c.rma_id
                 JOIN app.ai_analysis a ON a.analysis_id = d.analysis_id AND a.rma_id = c.rma_id
@@ -76,7 +78,7 @@ public class RmaCommunicationRepository {
                 .query(FollowUpContext.class).optional();
     }
 
-    public record FollowUpContext(String reportedPartNo, String analysisId) {
+    public record FollowUpContext(String reportedPartNo, String analysisId, String causeCode) {
     }
 
     public record Message(String messageId, String audience, String authorRole, String authorName, String messageText,
