@@ -40,6 +40,11 @@ ai:
   mode: ${AI_MODE:mock}
   base-url: ${AI_BASE_URL:http://127.0.0.1:8080/ai/v1}
 
+app:
+  service-action:
+    # pcb.service_action.policy_version. 적재한 PCB 데이터 버전에 맞춤 (v5: B2B-QA-2025, v6: B2B-QA-2026)
+    policy-version: ${APP_SERVICE_ACTION_POLICY_VERSION:B2B-QA-2026}
+
 server:
   port: 8000
   servlet:
