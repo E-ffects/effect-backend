@@ -26,11 +26,11 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 20s
 
-  # 분석 폴링과 사례 갱신이 같은 스레드를 기다리지 않게 작업 수만큼 둠
+  # 분석 폴링·사례 갱신·알림 갱신이 같은 스레드를 기다리지 않게 작업 수만큼 둠
   task:
     scheduling:
       pool:
-        size: 2
+        size: 3
 
   servlet:
     multipart:
