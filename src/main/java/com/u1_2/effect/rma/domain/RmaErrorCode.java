@@ -19,6 +19,7 @@ public enum RmaErrorCode implements ErrorCode {
     CAUSE_ALREADY_DECIDED(HttpStatus.CONFLICT, "CAUSE_ALREADY_DECIDED", "이미 원인 판정이 끝났습니다."),
     CAUSE_NOT_DECIDED(HttpStatus.CONFLICT, "CAUSE_NOT_DECIDED", "원인 판정을 완료한 뒤 처리 결과를 기록하세요."),
     FOLLOW_UP_DRAFT_NOT_READY(HttpStatus.CONFLICT, "FOLLOW_UP_DRAFT_NOT_READY", "원인을 승인하거나 확인한 뒤 2차 회신 초안을 요청하세요."),
+    ANALYSIS_REGISTERING(HttpStatus.CONFLICT, "ANALYSIS_REGISTERING", "같은 RMA의 분석 등록이 진행 중입니다. 잠시 후 다시 시도하세요."),
     ANALYSIS_MISMATCH(HttpStatus.BAD_REQUEST, "ANALYSIS_MISMATCH", "최신 완료 분석을 선택하세요."),
     TRIAGE_LOCKED(HttpStatus.CONFLICT, "TRIAGE_LOCKED", "원인 판정이 끝난 접수의 QA 판정을 수정할 수 없습니다."),
     LOT_NOT_FOUND(HttpStatus.BAD_REQUEST, "LOT_NOT_FOUND", "제품과 일치하는 생산 Lot을 찾을 수 없습니다."),

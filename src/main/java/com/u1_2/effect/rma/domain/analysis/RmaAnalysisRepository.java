@@ -95,29 +95,30 @@ public class RmaAnalysisRepository {
                 """).query(String.class).list();
     }
 
-    public Optional<Pending> lockDueAnalysis(String analysisId) {
-        // 여러 실행기가 같은 작업을 골라도 한 번에 하나만 조회하고 저장하게 함
+    public Optional<Pending> claimDueAnalysis(String analysisId, int leaseSeconds) {
+        // 조회 예정 시각을 선점 만료 시각으로 미루고 바로 커밋함. 같은 작업은 만료 전까지 다른 실행기가 집지 않음
         return jdbcClient.sql("""
-                SELECT analysis_id, rma_id,
-                       poll_started_at + (CASE WHEN mode = 'A' THEN 100 ELSE 40 END) * INTERVAL '1 second'
-                           <= CURRENT_TIMESTAMP AS timed_out
-                FROM app.ai_analysis
+                UPDATE app.ai_analysis SET next_poll_at = clock_timestamp() + :lease * INTERVAL '1 second'
                 WHERE analysis_id = :analysisId AND analysis_state IN ('QUEUED', 'RUNNING')
                     AND next_poll_at <= CURRENT_TIMESTAMP
-                FOR UPDATE SKIP LOCKED
-                """).param("analysisId", analysisId).query(Pending.class).optional();
+                RETURNING analysis_id, rma_id,
+                    poll_started_at + (CASE WHEN mode = 'A' THEN 100 ELSE 40 END) * INTERVAL '1 second'
+                        <= CURRENT_TIMESTAMP AS timed_out,
+                    next_poll_at AS claimed_until
+                """).param("analysisId", analysisId).param("lease", leaseSeconds).query(Pending.class).optional();
     }
 
-    public void reschedule(String analysisId) {
+    public boolean reschedule(String analysisId, OffsetDateTime claimedUntil) {
         // 로컬 시연의 고정 시계와 별개로 실제 경과 시간에 맞춰 다음 조회를 예약함
-        jdbcClient.sql("""
+        return jdbcClient.sql("""
                 UPDATE app.ai_analysis SET next_poll_at = clock_timestamp() + poll_interval_ms * INTERVAL '1 millisecond'
-                WHERE analysis_id = :analysisId
-                """).param("analysisId", analysisId).update();
+                WHERE analysis_id = :analysisId AND next_poll_at = :claimedUntil
+                """).param("analysisId", analysisId).param("claimedUntil", claimedUntil).update() == 1;
     }
 
-    public void save(Update update) {
-        jdbcClient.sql("""
+    public boolean save(Update update) {
+        // 선점한 실행기만 저장함. 선점 시각이 바뀌었거나 이미 끝난 작업이면 늦게 온 응답을 버림
+        return jdbcClient.sql("""
                 UPDATE app.ai_analysis
                 SET analysis_state = :state, as_of = COALESCE(:asOf, as_of),
                     progress_json = COALESCE(CAST(:progress AS jsonb), progress_json),
@@ -126,8 +127,25 @@ public class RmaAnalysisRepository {
                     error_json = CAST(:error AS jsonb), langsmith_run_id = :langsmithRunId,
                     completed_at = :completedAt, updated_at = :updatedAt,
                     next_poll_at = clock_timestamp() + poll_interval_ms * INTERVAL '1 millisecond'
-                WHERE analysis_id = :analysisId
-                """).paramSource(update).update();
+                WHERE analysis_id = :analysisId AND next_poll_at = :claimedUntil
+                    AND analysis_state IN ('QUEUED', 'RUNNING')
+                """).paramSource(update).update() == 1;
+    }
+
+    public Optional<OffsetDateTime> claimRegistration(String rmaId, int leaseSeconds) {
+        // FastAPI 등록을 기다리는 동안 같은 RMA의 등록 요청이 한 번만 나가게 함. 만료된 선점은 넘겨받음
+        return jdbcClient.sql("""
+                INSERT INTO app.analysis_registration (rma_id, lease_until)
+                VALUES (:rmaId, clock_timestamp() + :lease * INTERVAL '1 second')
+                ON CONFLICT (rma_id) DO UPDATE SET lease_until = EXCLUDED.lease_until
+                WHERE app.analysis_registration.lease_until <= clock_timestamp()
+                RETURNING lease_until
+                """).param("rmaId", rmaId).param("lease", leaseSeconds).query(OffsetDateTime.class).optional();
+    }
+
+    public void releaseRegistration(String rmaId, OffsetDateTime leaseUntil) {
+        jdbcClient.sql("DELETE FROM app.analysis_registration WHERE rma_id = :rmaId AND lease_until = :leaseUntil")
+                .param("rmaId", rmaId).param("leaseUntil", leaseUntil).update();
     }
 
     public Optional<String> findLatestQaLevel(String rmaId) {
@@ -155,7 +173,7 @@ public class RmaAnalysisRepository {
                            String langsmithRunId, OffsetDateTime updatedAt, String approvalStatus, String adoptedCauseCode) {
     }
 
-    public record Pending(String analysisId, String rmaId, boolean timedOut) {
+    public record Pending(String analysisId, String rmaId, boolean timedOut, OffsetDateTime claimedUntil) {
     }
 
     public record ReanalysisInput(String rawText, String intakeState, long claimedDefectQty, boolean triaged,
@@ -167,6 +185,6 @@ public class RmaAnalysisRepository {
 
     public record Update(String analysisId, String state, OffsetDateTime asOf, String progress, String result,
                          String trace, String warnings, String error, String langsmithRunId,
-                         OffsetDateTime completedAt, OffsetDateTime updatedAt) {
+                         OffsetDateTime completedAt, OffsetDateTime updatedAt, OffsetDateTime claimedUntil) {
     }
 }
