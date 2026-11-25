@@ -1,4 +1,4 @@
-package com.u1_2.effect.rma.presentation;
+package com.u1_2.effect.rma.presentation.review;
 
 import com.u1_2.effect.config.jwt.AuthUser;
 import com.u1_2.effect.global.annotation.CurrentUser;
@@ -7,8 +7,8 @@ import com.u1_2.effect.global.dto.ResponseDto;
 import com.u1_2.effect.rma.application.review.RmaReviewService;
 import com.u1_2.effect.rma.domain.review.RmaReviewRepository.ApprovalLevel;
 import com.u1_2.effect.rma.domain.review.RmaReviewRepository.ApprovalStatus;
-import com.u1_2.effect.rma.presentation.dto.RmaApprovalResponse;
-import com.u1_2.effect.rma.presentation.dto.RmaTriageReviewResponse;
+import com.u1_2.effect.rma.presentation.review.dto.RmaApprovalResponse;
+import com.u1_2.effect.rma.presentation.review.dto.RmaTriageReviewResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

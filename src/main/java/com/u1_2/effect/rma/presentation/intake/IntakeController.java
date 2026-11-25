@@ -1,4 +1,4 @@
-package com.u1_2.effect.rma.presentation;
+package com.u1_2.effect.rma.presentation.intake;
 
 import com.u1_2.effect.config.jwt.AuthUser;
 import com.u1_2.effect.global.annotation.CurrentUser;
@@ -7,10 +7,12 @@ import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.rma.application.intake.IntakeRegistrationService.Registration;
 import com.u1_2.effect.rma.application.intake.IntakeWorkflowService;
 import com.u1_2.effect.rma.domain.RmaErrorCode;
-import com.u1_2.effect.rma.presentation.dto.CreateIntakeRequest;
-import com.u1_2.effect.rma.presentation.dto.RmaIntakeResponse;
+import com.u1_2.effect.rma.presentation.intake.dto.CreateIntakeReplyRequest;
+import com.u1_2.effect.rma.presentation.intake.dto.CreateIntakeRequest;
+import com.u1_2.effect.rma.presentation.intake.dto.RmaIntakeResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
@@ -18,6 +20,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
@@ -46,6 +49,17 @@ public class IntakeController {
                 request.reportedDateCode(), request.panelId(), request.customerRequest(), request.rawFile(),
                 files.getFiles("attachments[]"));
         return ResponseEntity.ok(ResponseDto.ofSuccess(service.create(registration, user, key)));
+    }
+
+    @Operation(summary = "고객 보충 회신 등록 및 접수 재분류")
+    @PostMapping("/rmas/{rmaId}/intake/reply")
+    public ResponseEntity<ResponseDto<RmaIntakeResponse>> reply(
+            @PathVariable String rmaId,
+            @CurrentUser AuthUser user,
+            @Valid @RequestBody CreateIntakeReplyRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) @Size(max = 128) String key
+    ) {
+        return ResponseEntity.ok(ResponseDto.ofSuccess(service.reply(rmaId, request.messageText(), user, key)));
     }
 
     @Operation(summary = "실패한 RMA 접수를 AI 분류부터 재처리")

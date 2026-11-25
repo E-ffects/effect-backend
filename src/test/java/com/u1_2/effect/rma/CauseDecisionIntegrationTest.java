@@ -3,6 +3,7 @@ package com.u1_2.effect.rma;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,12 +50,23 @@ class CauseDecisionIntegrationTest {
                     '품질관리자 판정', '품질 담당자', '2025-12-31T09:00:00+09:00')
                 """).param("id", confirmed).update();
 
+        analysis(approved, Role.QUALITY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.cause_decision.approval_status").value("WAITING"))
+                .andExpect(jsonPath("$.content.cause_decision.adopted_cause_code").doesNotHaveJsonPath());
         decide(approved, "ana-approve", "APPROVED", "OL_ETCH_RESIDUE", Role.QUALITY)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.approval_status").value("APPROVED"))
                 .andExpect(jsonPath("$.content.decided_by").value("품질 담당자"));
         decide(confirmed, "ana-confirm", "CONFIRMED", "OL_ETCH_RESIDUE", Role.QUALITY)
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content.approval_status").value("CONFIRMED"));
+        analysis(approved, Role.QUALITY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.cause_decision.approval_status").value("APPROVED"))
+                .andExpect(jsonPath("$.content.cause_decision.adopted_cause_code").value("OL_ETCH_RESIDUE"));
+        analysis(confirmed, Role.QUALITY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.cause_decision.approval_status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.content.cause_decision.adopted_cause_code").value("OL_ETCH_RESIDUE"));
+        analysis(approved, Role.CS).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.cause_decision").doesNotHaveJsonPath());
 
         var investigationIds = jdbc.sql("""
                 SELECT DISTINCT investigation_id FROM pcb.investigation_claim WHERE rma_id IN (:ids)
@@ -86,12 +98,23 @@ class CauseDecisionIntegrationTest {
                 .andExpect(status().isBadRequest());
         decide(rmaId, "ana-reject", "REJECTED", null, Role.QUALITY)
                 .andExpect(status().isOk()).andExpect(jsonPath("$.content.approval_status").value("REJECTED"));
+        analysis(rmaId, Role.QUALITY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.cause_decision.approval_status").value("REJECTED"))
+                .andExpect(jsonPath("$.content.cause_decision.adopted_cause_code").doesNotHaveJsonPath());
         assertThat(jdbc.sql("SELECT COUNT(*) FROM pcb.investigation_claim WHERE rma_id = :id")
                 .param("id", rmaId).query(Long.class).single()).isZero();
         assertThat(jdbc.sql("SELECT refresh_status IS NULL FROM app.cause_decision WHERE rma_id = :id")
                 .param("id", rmaId).query(Boolean.class).single()).isTrue();
         assertThat(jdbc.sql("SELECT qa_status FROM pcb.rma_claim WHERE rma_id = :id")
                 .param("id", rmaId).query(String.class).single()).isEqualTo("ANALYZING");
+
+        jdbc.sql("""
+                INSERT INTO app.ai_analysis (analysis_id, rma_id, mode, analysis_state, created_at)
+                VALUES ('ana-retry-after-reject', :id, 'B', 'RUNNING', CURRENT_TIMESTAMP + INTERVAL '1 second')
+                """).param("id", rmaId).update();
+        analysis(rmaId, Role.QUALITY).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.analysis_state").value("RUNNING"))
+                .andExpect(jsonPath("$.content.cause_decision").doesNotHaveJsonPath());
     }
 
     @Test
@@ -168,5 +191,10 @@ class CauseDecisionIntegrationTest {
                 .content("""
                         {"analysis_id":"%s","decision":"%s","candidates":%s,"comment":"판정 근거"}
                         """.formatted(analysisId, outcome, candidates)));
+    }
+
+    private ResultActions analysis(String rmaId, Role role) throws Exception {
+        return mvc.perform(get("/api/rmas/{id}/analysis", rmaId).contextPath("/api")
+                .header("Authorization", "Bearer " + jwt.createAccessToken(7L, role)));
     }
 }

@@ -15,14 +15,14 @@ public class RmaIntakeWorkflowRepository {
 
     private final JdbcClient jdbcClient;
 
-    public boolean claimRetry(String rmaId, OffsetDateTime now) {
-        // 실패에서 처리 중으로 바꾼 요청 한 건만 AI 재처리를 시작함
+    public boolean claimForProcessing(String rmaId, String expectedState, OffsetDateTime now) {
+        // 예상 상태에서 처리 중으로 전환한 요청 한 건만 AI를 호출할 수 있음
         return jdbcClient.sql("""
                 UPDATE app.intake SET intake_state = 'PROCESSING', classification_json = NULL,
                     follow_up_questions_json = NULL, triage_result_json = NULL, triage_proposal_json = NULL,
                     error_code = NULL, error_detail = NULL, updated_at = :now
-                WHERE rma_id = :rmaId AND intake_state = 'FAILED'
-                """).param("rmaId", rmaId).param("now", now).update() == 1;
+                WHERE rma_id = :rmaId AND intake_state = :expectedState
+                """).param("rmaId", rmaId).param("expectedState", expectedState).param("now", now).update() == 1;
     }
 
     public void clearAutomaticProposals(String rmaId) {

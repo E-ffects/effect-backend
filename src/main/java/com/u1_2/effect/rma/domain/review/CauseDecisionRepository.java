@@ -1,6 +1,7 @@
 package com.u1_2.effect.rma.domain.review;
 
 import com.u1_2.effect.rma.domain.RmaHistoryOrder;
+import com.u1_2.effect.rma.domain.analysis.AnalysisResultStates;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -18,18 +19,10 @@ public class CauseDecisionRepository {
         return jdbcClient.sql("""
                 SELECT analysis.analysis_id, analysis.result_json::text AS result, d.approval_status, d.analysis_level
                 FROM app.ai_analysis analysis LEFT JOIN app.cause_decision d ON d.analysis_id = analysis.analysis_id
-                WHERE analysis.rma_id = :rmaId AND analysis.analysis_state IN ('SUCCEEDED', 'PARTIAL')
+                WHERE analysis.rma_id = :rmaId AND analysis.analysis_state IN (:resultStates)
                 ORDER BY %s LIMIT 1
-                """.formatted(RmaHistoryOrder.ANALYSIS)).param("rmaId", rmaId).query(Target.class).optional();
-    }
-
-    /** 승인·확인된 가장 최근 판정. 채택한 후보가 있는 후보 JSON과 분석 번호를 돌려줌. */
-    public Optional<Adopted> findAdopted(String rmaId) {
-        return jdbcClient.sql("""
-                SELECT analysis_id, candidates_json::text AS candidates FROM app.cause_decision
-                WHERE rma_id = :rmaId AND approval_status IN ('APPROVED', 'CONFIRMED')
-                ORDER BY decided_at DESC, id DESC LIMIT 1
-                """).param("rmaId", rmaId).query(Adopted.class).optional();
+                """.formatted(RmaHistoryOrder.ANALYSIS)).param("rmaId", rmaId)
+                .param("resultStates", AnalysisResultStates.WITH_RESULT).query(Target.class).optional();
     }
 
     public void save(Decision row) {
@@ -73,9 +66,6 @@ public class CauseDecisionRepository {
     }
 
     public record Target(String analysisId, String result, String approvalStatus, String analysisLevel) {
-    }
-
-    public record Adopted(String analysisId, String candidates) {
     }
 
     public record Decision(String rmaId, String analysisId, String status, String level, String candidates,

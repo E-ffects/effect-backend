@@ -1,4 +1,4 @@
-package com.u1_2.effect.rma.presentation.dto;
+package com.u1_2.effect.rma.presentation.review.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;

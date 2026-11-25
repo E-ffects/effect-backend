@@ -5,11 +5,9 @@ import com.u1_2.effect.global.annotation.CurrentUser;
 import com.u1_2.effect.global.dto.ResponseDto;
 import com.u1_2.effect.rma.application.communication.RmaCommunicationService;
 import com.u1_2.effect.rma.presentation.communication.dto.CreateRmaCommunicationRequest;
-import com.u1_2.effect.rma.presentation.communication.dto.CreateRmaServiceActionRequest;
 import com.u1_2.effect.rma.presentation.communication.dto.RmaCommunicationResponse;
-import com.u1_2.effect.rma.presentation.communication.dto.RmaFollowUpDraftResponse;
 import com.u1_2.effect.rma.presentation.communication.dto.RmaCommunicationResponse.History;
-import com.u1_2.effect.rma.presentation.communication.dto.RmaServiceActionResponse;
+import com.u1_2.effect.rma.presentation.communication.dto.RmaFollowUpDraftResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +26,14 @@ public class RmaCommunicationController {
 
     private final RmaCommunicationService service;
 
+    @Operation(summary = "원인 확정 후 고객 2차 회신 초안 만들기")
+    @PostMapping("/communications/follow-up-draft")
+    public ResponseEntity<ResponseDto<RmaFollowUpDraftResponse>> createFollowUpDraft(
+            @PathVariable String rmaId, @CurrentUser AuthUser user
+    ) {
+        return ResponseEntity.ok(ResponseDto.ofSuccess(service.createFollowUpDraft(rmaId, user.role())));
+    }
+
     @Operation(summary = "고객 회신 기록 저장")
     @PostMapping("/communications")
     public ResponseEntity<ResponseDto<RmaCommunicationResponse>> recordMessage(
@@ -40,21 +46,5 @@ public class RmaCommunicationController {
     @GetMapping("/communications")
     public ResponseEntity<ResponseDto<History>> findHistory(@PathVariable String rmaId, @CurrentUser AuthUser user) {
         return ResponseEntity.ok(ResponseDto.ofSuccess(service.findHistory(rmaId, user.role())));
-    }
-
-    @Operation(summary = "2차 회신 초안 생성")
-    @PostMapping("/communications/follow-up-draft")
-    public ResponseEntity<ResponseDto<RmaFollowUpDraftResponse>> followUpDraft(
-            @PathVariable String rmaId, @CurrentUser AuthUser user
-    ) {
-        return ResponseEntity.ok(ResponseDto.ofSuccess(service.createFollowUpDraft(rmaId, user.role())));
-    }
-
-    @Operation(summary = "고객 처리 예약 또는 실행 결과 저장")
-    @PostMapping("/service-action")
-    public ResponseEntity<ResponseDto<RmaServiceActionResponse>> recordAction(
-            @PathVariable String rmaId, @Valid @RequestBody CreateRmaServiceActionRequest request, @CurrentUser AuthUser user
-    ) {
-        return ResponseEntity.ok(ResponseDto.ofSuccess(service.recordAction(rmaId, request, user.role())));
     }
 }

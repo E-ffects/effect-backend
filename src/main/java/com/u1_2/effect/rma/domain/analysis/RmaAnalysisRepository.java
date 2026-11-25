@@ -61,19 +61,30 @@ public class RmaAnalysisRepository {
     }
 
     public Optional<Snapshot> findLatest(String rmaId) {
+        return findLatest(rmaId, false);
+    }
+
+    public Optional<Snapshot> findLatest(String rmaId, boolean includeDecision) {
+        // 최신 분석과 같은 분석 번호의 판정만 조회해 이전 분석의 승인·반려가 섞이지 않게 함
         return jdbcClient.sql("""
                 SELECT c.rma_id, a.analysis_id, a.analysis_state, a.as_of, a.mode,
                        a.progress_json::text AS progress, a.result_json::text AS result,
                        a.trace_json::text AS trace, a.warnings_json::text AS warnings,
                        a.error_json::text AS error, a.langsmith_run_id,
-                       COALESCE(a.updated_at, a.completed_at, a.created_at) AS updated_at
+                       COALESCE(a.updated_at, a.completed_at, a.created_at) AS updated_at,
+                       d.approval_status,
+                       CASE WHEN d.approval_status IN ('APPROVED', 'CONFIRMED')
+                           THEN jsonb_path_query_first(d.candidates_json, '$[*] ? (@.status == "ADOPTED").cause_code') #>> '{}'
+                       END AS adopted_cause_code
                 FROM pcb.rma_claim c
                 LEFT JOIN LATERAL (
                     SELECT * FROM app.ai_analysis analysis WHERE rma_id = c.rma_id
                     ORDER BY %s LIMIT 1
                 ) a ON TRUE
+                LEFT JOIN app.cause_decision d ON :includeDecision AND d.analysis_id = a.analysis_id AND d.rma_id = c.rma_id
                 WHERE c.rma_id = :rmaId
-                """.formatted(RmaHistoryOrder.ANALYSIS)).param("rmaId", rmaId).query(Snapshot.class).optional();
+                """.formatted(RmaHistoryOrder.ANALYSIS)).param("rmaId", rmaId)
+                .param("includeDecision", includeDecision).query(Snapshot.class).optional();
     }
 
     public List<String> findDueAnalyses() {
@@ -141,7 +152,7 @@ public class RmaAnalysisRepository {
 
     public record Snapshot(String rmaId, String analysisId, String analysisState, OffsetDateTime asOf, String mode,
                            String progress, String result, String trace, String warnings, String error,
-                           String langsmithRunId, OffsetDateTime updatedAt) {
+                           String langsmithRunId, OffsetDateTime updatedAt, String approvalStatus, String adoptedCauseCode) {
     }
 
     public record Pending(String analysisId, String rmaId, boolean timedOut) {

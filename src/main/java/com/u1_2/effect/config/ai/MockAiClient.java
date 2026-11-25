@@ -55,7 +55,8 @@ public class MockAiClient implements AiClient {
 
     @Override
     public Classification classify(ClassifyRequest request) {
-        if (request.rawText().contains("정보 부족")) {
+        // 보충 회신이 있으면 최근 입력으로 정보 부족 시나리오를 다시 판단함
+        if (IntakeClassificationText.latestSection(request.rawText()).contains("정보 부족")) {
             return new Classification("INSUFFICIENT_INFO", null, null, null, List.of(),
                     List.of("불량이 발생한 공정과 확인한 증상을 알려주세요."));
         }
@@ -121,7 +122,8 @@ public class MockAiClient implements AiClient {
 
     @Override
     public FollowUp followUp(String rmaId, String causeCode) {
-        return new FollowUp("원인 분석이 끝났습니다. 확인된 원인에 따라 처리를 진행하며, 진행 상황을 회신드리겠습니다.");
+        // 목업에는 후속 그래프가 없어 Spring 기본 문안(MANUAL)을 쓰게 함
+        throw new AiUnavailableException();
     }
 
     private record Job(String rmaId, String mode, long claimedDefectQty, boolean noServiceHistory,

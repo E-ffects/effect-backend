@@ -76,7 +76,19 @@ class CsDashboardIntegrationTest {
     }
 
     private MockHttpServletRequestBuilder request(Role role) {
-        return get("/api/dashboard/cs").contextPath("/api")
+        return request("", role);
+    }
+
+    @Test
+    void CS_요약에_선택_기간의_접수와_종료와_현재_처리_중인_건수를_표시한다() throws Exception {
+        mvc.perform(request("/summary", Role.CS).param("from", "2025-12-31").param("to", "2025-12-31"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content.summary").value(
+                        "선택 기간에 2건이 접수되고 1건이 종료됐습니다. 현재 처리 중인 접수는 3건입니다."));
+        mvc.perform(request("/summary", Role.QUALITY)).andExpect(status().isForbidden());
+    }
+
+    private MockHttpServletRequestBuilder request(String suffix, Role role) {
+        return get("/api/dashboard/cs" + suffix).contextPath("/api")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt.createAccessToken(1L, role));
     }
 }

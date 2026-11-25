@@ -5,6 +5,7 @@ import com.u1_2.effect.report.domain.ReportBody;
 import com.u1_2.effect.report.domain.ReportErrorCode;
 import com.u1_2.effect.rma.domain.RmaClaimRepository;
 import com.u1_2.effect.rma.domain.RmaErrorCode;
+import com.u1_2.effect.rma.domain.analysis.AnalysisResultStates;
 import com.u1_2.effect.rma.domain.analysis.RmaAnalysisRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -25,7 +26,7 @@ class ReportDraftFactory {
 
     Draft build(String rmaId) {
         var analysis = analyses.findLatest(rmaId).orElseThrow(() -> new ApiException(RmaErrorCode.RMA_NOT_FOUND));
-        if (analysis.result() == null || !("SUCCEEDED".equals(analysis.analysisState()) || "PARTIAL".equals(analysis.analysisState()))) {
+        if (analysis.result() == null || !AnalysisResultStates.hasResult(analysis.analysisState())) {
             throw new ApiException(ReportErrorCode.REPORT_ANALYSIS_NOT_READY);
         }
 
