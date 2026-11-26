@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.verify;
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -104,6 +105,33 @@ class ChatIntegrationTest {
     }
 
     @Test
+    void 새로고침하면_이_사용자의_열린_대화를_순서대로_돌려주고_없으면_null이다() throws Exception {
+        String first = threadId(chat(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED, null, "이전 대화"));
+        String threadId = threadId(chat(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED, null, "이 건 원인이 뭐야?"));
+        chat(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED, threadId, "2순위는?").andExpect(status().isOk());
+        assertThat(threadId).isNotEqualTo(first);
+
+        thread(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.thread_id").value(threadId))
+                .andExpect(jsonPath("$.content.scope_type").value("RMA"))
+                .andExpect(jsonPath("$.content.messages.length()").value(4))
+                .andExpect(jsonPath("$.content.messages[0].role").value("user"))
+                .andExpect(jsonPath("$.content.messages[0].text").value("이 건 원인이 뭐야?"))
+                .andExpect(jsonPath("$.content.messages[0].status").doesNotExist())
+                .andExpect(jsonPath("$.content.messages[1].role").value("assistant"))
+                .andExpect(jsonPath("$.content.messages[1].status").value("ANSWERED"))
+                .andExpect(jsonPath("$.content.messages[1].evidence").isArray())
+                .andExpect(jsonPath("$.content.messages[3].created_at").exists());
+
+        thread(OTHER_QUALITY_USER, Role.QUALITY, "RMA", ANALYZED)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").doesNotExist());
+        thread(QUALITY_USER, Role.QUALITY, "RMA", NOT_ANALYZED)
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content").doesNotExist());
+        thread(QUALITY_USER, Role.QUALITY, "UNKNOWN", ANALYZED).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void thread_id_없이_보내면_이전_대화를_닫고_닫힌_대화나_다른_사용자의_대화로는_이어갈_수_없다() throws Exception {
         String first = threadId(chat(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED, null, "첫 질문"));
         String second = threadId(chat(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED, null, "새 대화 질문"));
@@ -194,6 +222,11 @@ class ChatIntegrationTest {
         }
         return mvc.perform(post("/api/chat").contextPath("/api").header("Authorization", token(userId, role))
                 .contentType(MediaType.APPLICATION_JSON).content(body.toString()));
+    }
+
+    private ResultActions thread(long userId, Role role, String type, String id) throws Exception {
+        return mvc.perform(get("/api/chat/threads").contextPath("/api").header("Authorization", token(userId, role))
+                .param("scope_type", type).param("scope_id", id));
     }
 
     private String threadId(ResultActions result) throws Exception {
