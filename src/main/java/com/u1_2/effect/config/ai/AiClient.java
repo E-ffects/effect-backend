@@ -28,6 +28,30 @@ public interface AiClient {
     /** QA가 승인·확인한 원인으로 2차 회신 초안을 만듦. 원인명 없이 범주만 쓴 고객용 문안을 돌려줌. */
     FollowUp followUp(String rmaId, String causeCode);
 
+    /** 에이전트 패널 자유 질의. AI는 대화를 저장하지 않으므로 Spring이 최근 대화와 문맥을 함께 보냄. */
+    ChatReply chat(ChatRequest request);
+
+    // ---- 챗봇 계약(초안). 필드 확정은 AI 담당과 합의 후 반영함. context는 범위별 모양이 달라 JSON으로 둠
+    record ChatRequest(String threadId, String audience, ChatScopeRef scope, String message,
+                       List<ChatTurn> history, JsonNode context) {
+    }
+
+    record ChatScopeRef(String type, String id) {
+    }
+
+    record ChatTurn(String role, String text) {
+    }
+
+    record ChatReply(String status, String intent, String answer, List<ChatEvidence> evidence,
+                     List<ChatSuggestion> suggestions, List<String> warnings, String modelVersion) {
+    }
+
+    record ChatEvidence(String type, String rmaId, String label) {
+    }
+
+    record ChatSuggestion(String task, String label) {
+    }
+
     record FollowUp(String customerReply) {
     }
 

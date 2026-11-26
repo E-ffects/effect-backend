@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -34,6 +35,9 @@ public class HttpAiClient implements AiClient {
 
     private static final Duration CLASSIFY_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(5);
+    // 채팅은 의도 분류와 문장 작성으로 LLM을 최대 두 번 기다림
+    private static final Duration CHAT_TIMEOUT = Duration.ofSeconds(20);
+    private static final Set<String> CHAT_STATUSES = Set.of("ANSWERED", "NEED_ANALYSIS", "OUT_OF_SCOPE", "FALLBACK");
 
     private final HttpClient client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(2)).build();
@@ -143,6 +147,17 @@ public class HttpAiClient implements AiClient {
         return item != null && item.rmaId() != null && item.openedAt() != null && item.similarity() != null
                 && Double.isFinite(item.similarity()) && item.similarity() >= 0 && item.similarity() <= 1
                 && (item.correctiveActions() == null || item.correctiveActions().stream().noneMatch(Objects::isNull));
+    }
+
+    @Override
+    public ChatReply chat(ChatRequest request) {
+        var reply = read(send(request, CHAT_TIMEOUT, "chat"), ChatReply.class);
+        // 화면이 분기하는 상태값과 답변 본문이 없으면 저장하지 않고 AI 장애로 처리함
+        if (reply.answer() == null || reply.answer().isBlank() || !CHAT_STATUSES.contains(reply.status())) {
+            log.warn("FastAPI 채팅 응답 형식이 맞지 않음. status={}", reply.status());
+            throw new AiUnavailableException();
+        }
+        return reply;
     }
 
     @Override

@@ -254,6 +254,34 @@ class HttpAiClientIntegrationTest {
     }
 
     @Test
+    void 채팅은_범위와_대화를_snake_case로_보내고_모르는_상태값은_AI_장애로_처리한다() {
+        responder = call -> new Reply(200, """
+                {"status":"ANSWERED","intent":"CAUSE","answer":"1순위 후보는 외층 에칭 잔동입니다.",
+                 "evidence":[{"type":"SIMILAR_CASE","rma_id":"RMA-00015","label":"같은 증상 과거 사례"}],
+                 "suggestions":[],"warnings":[],"model_version":"chat-0.1+llm"}
+                """);
+        var request = new AiClient.ChatRequest("thread-1", "QUALITY", new AiClient.ChatScopeRef("RMA", "RMA-10610"),
+                "원인이 뭐야?", List.of(new AiClient.ChatTurn("user", "이전 질문")), jsonMapper.createObjectNode());
+        var reply = aiClient.chat(request);
+        assertThat(reply.evidence()).singleElement().satisfies(e -> assertThat(e.rmaId()).isEqualTo("RMA-00015"));
+        assertThat(reply.modelVersion()).isEqualTo("chat-0.1+llm");
+        JsonNode sent = jsonMapper.readTree(CALLS.getLast().body());
+        assertThat(CALLS.getLast().path()).isEqualTo("/ai/v1/chat");
+        assertThat(sent.path("thread_id").stringValue()).isEqualTo("thread-1");
+        assertThat(sent.path("scope").path("type").stringValue()).isEqualTo("RMA");
+        assertThat(sent.path("history").path(0).path("text").stringValue()).isEqualTo("이전 질문");
+
+        responder = call -> new Reply(200, """
+                {"status":"THINKING","answer":"..."}
+                """);
+        assertThatThrownBy(() -> aiClient.chat(request)).isInstanceOf(AiUnavailableException.class);
+        responder = call -> new Reply(200, """
+                {"status":"ANSWERED","answer":" "}
+                """);
+        assertThatThrownBy(() -> aiClient.chat(request)).isInstanceOf(AiUnavailableException.class);
+    }
+
+    @Test
     void FastAPI_오류를_사용자_인증과_구분하고_v6_오류_코드로_변환한다() {
         var examples = List.of(new ErrorExample(400, "INVALID_INPUT", CommonErrorCode.INVALID_INPUT),
                 new ErrorExample(404, "CLAIM_NOT_FOUND", RmaErrorCode.RMA_NOT_FOUND),
