@@ -15,7 +15,7 @@ public class PatternRepository {
     // 조사의 연결 이력이 중복돼도 근거와 집계에는 접수당 한 행만 사용함
     private static final String SCOPED_CLAIMS = """
             WITH claims AS (
-                SELECT c.rma_id, c.opened_at::timestamptz AS opened_at
+                SELECT c.rma_id, c.reported_part_no, c.opened_at::timestamptz AS opened_at
                 FROM pcb.rma_claim c
                 WHERE c.opened_at::timestamptz >= :start AND c.opened_at::timestamptz < :end
                   AND (CAST(:product AS text) IS NULL OR c.reported_part_no = :product)
@@ -111,11 +111,20 @@ public class PatternRepository {
     }
 
     private JdbcClient.StatementSpec query(Selection selection, String sql) {
-        return jdbcClient.sql(sql).param("start", selection.start()).param("end", selection.end())
-                .param("product", selection.product()).param("investigationId", selection.investigationId());
+        return selection.query(jdbcClient, sql);
     }
 
     public record Selection(OffsetDateTime start, OffsetDateTime end, String product, String investigationId) {
+
+        // 패턴 상세와 보고서에서 기간·제품·조사 연결 기준을 동일하게 적용함
+        public JdbcClient.StatementSpec scopedClaims(JdbcClient jdbc, String sql) {
+            return query(jdbc, SCOPED_CLAIMS + sql);
+        }
+
+        public JdbcClient.StatementSpec query(JdbcClient jdbc, String sql) {
+            return jdbc.sql(sql).param("start", start).param("end", end)
+                    .param("product", product).param("investigationId", investigationId);
+        }
     }
 
     public record Profile(String investigationId, String title, String analysisLevel, String status, long loss) {

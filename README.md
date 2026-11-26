@@ -51,7 +51,7 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 - RMA의 접수, 분석, QA·원인 검토, 고객 회신·처리는 각 계층의 `intake`, `analysis`, `review`, `communication` 패키지에서 찾을 수 있습니다. 공통 RMA 목록·상세·첨부는 `rma`의 각 계층에 있습니다.
 - `rma/application/intake/IntakeWorkflowService`는 접수 후 처리 순서를, `IntakeWorkflowStateService`는 상태 저장을, `IntakeResponseQuery`는 같은 응답 형식으로 상태를 조회하는 일을 담당합니다.
 - `investigation`은 품질 대시보드와 불량 패턴이 공유하는 접수 집계와 조사 순위를 담당합니다. 각 화면은 조회 결과를 자체 응답 형식으로 변환합니다.
-- `recurrence`, `report`, `alert`는 각각 조사 대책·재발, 보고서, 사용자별 알림 상태를 담당합니다. 서울 날짜 범위와 페이지 검증은 `global`에 있습니다.
+- `recurrence`, `report`, `patternreport`, `alert`는 조사 대책·재발, 단건 RMA 보고서, 불량 패턴 보고서, 사용자별 알림 상태를 담당합니다. 서울 날짜 범위와 페이지 검증은 `global`에 있습니다.
 
 ## 구현된 API
 
@@ -68,6 +68,7 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 | 조사별 대책·효과·재발 판정 이력 | `GET /api/recurrence/actions`, `GET /api/recurrence/actions/{actionId}/trend`, `GET /api/recurrence/reviews` |
 | 품질 알림과 개인 상태 | `GET /api/alerts`, `POST /api/alerts/{id}/read`, `POST /api/alerts/{id}/star`, `POST /api/alerts/read-all`, `POST /api/alerts/bulk-read`, `POST /api/alerts/bulk-delete`, `DELETE /api/alerts/{id}` |
 | RMA 보고서·패턴 요약 | `GET /api/reports`, `GET/POST/PUT /api/reports/{rmaId}`, `POST /api/reports/{rmaId}/draft`, `POST /api/reports/{rmaId}/replace`, `POST/DELETE /api/reports/{rmaId}/review`, `GET /api/dashboard/pattern-report/{patternId}` |
+| 불량 패턴 보고서 | `POST /api/patterns/{patternId}/reports`, `GET /api/pattern-reports`, `GET /api/pattern-reports/{reportId}`, `POST /api/pattern-reports/{reportId}/delivery-preview` |
 | 접수·재처리 | `POST /api/intake`, `POST /api/rmas/{rmaId}/intake/retry`, `POST /api/rmas/{rmaId}/intake/reply` |
 | QA 판정 | `GET /api/triage-reviews`, `PUT /api/rmas/{rmaId}/triage` |
 | 분석·승인 목록 | `GET/POST /api/rmas/{rmaId}/analysis`, `GET /api/approvals` |
@@ -167,6 +168,11 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 - QUALITY는 완료 또는 부분 성공 분석이 저장된 접수에서 보고서를 생성할 수 있습니다. 원인 후보와 개선안·회신 초안은 저장된 분석에서 가져오며, DB에서 확인된 RMA만 근거 링크에 넣습니다. 생성한 보고서는 재요청 시 재사용합니다.
 - 이력은 `content.items`, 개별 본문은 `content.content`에서 읽습니다. 비교 초안은 별도로 만들고, 수정하거나 교체하면 기존 검토 확인이 초기화됩니다.
 - 품질 RMA 상세의 `report`는 저장·검토 여부를 반환합니다. 불량 패턴 화면의 요약은 조사와 대책에 등록된 사실을 표시합니다.
+
+### 불량 패턴 보고서
+
+- QUALITY는 조사 번호와 조회 기간·제품 범위로 보고서를 생성하고, 저장된 이력과 근거 RMA 최대 세 건을 조회할 수 있습니다.
+- 기존 조사 기록으로 보고서를 구성합니다. 담당 부서별 미리보기는 저장한 원본을 사용하며, 화면과 PDF 연동의 요청·응답은 [Spring API v7 변경 명세](docs/PATTERN_REPORT_API_V7.md)에 있습니다.
 
 ### 과거 유사 사례
 
