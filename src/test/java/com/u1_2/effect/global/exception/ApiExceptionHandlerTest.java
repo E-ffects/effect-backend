@@ -1,8 +1,10 @@
 package com.u1_2.effect.global.exception;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -11,20 +13,29 @@ import com.u1_2.effect.global.dto.SuccessMessage;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
+import org.apache.catalina.connector.ClientAbortException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.MultipartFile;
 
 @WebMvcTest(controllers = ApiExceptionHandlerTest.TestController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -96,6 +107,67 @@ class ApiExceptionHandlerTest {
                 .andExpect(jsonPath("$.message").value("잠시 후 다시 시도하세요."));
     }
 
+    @Test
+    void 허용되지_않은_메서드는_Allow_헤더를_유지한다() throws Exception {
+        mockMvc.perform(delete("/test/ok"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().exists("Allow"));
+    }
+
+    @Test
+    void 필수_헤더_누락은_400() throws Exception {
+        mockMvc.perform(get("/test/header"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void 지원하지_않는_Content_Type은_400() throws Exception {
+        mockMvc.perform(post("/test/valid").contentType(MediaType.TEXT_PLAIN).content("x"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void 응답할_수_없는_Accept는_500이_아니다() throws Exception {
+        var result = mockMvc.perform(get("/test/ok").accept(MediaType.APPLICATION_XML)).andReturn();
+        assertThat(result.getResponse().getStatus()).isBetween(400, 499);
+    }
+
+    @Test
+    void multipart_파트_누락은_400() throws Exception {
+        mockMvc.perform(post("/test/upload").contentType(MediaType.MULTIPART_FORM_DATA).content("not multipart"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void multipart_파싱_실패는_첨부_오류() throws Exception {
+        mockMvc.perform(get("/test/multipart-broken"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_FILE"));
+    }
+
+    @Test
+    void 데이터_무결성_위반은_409_CONFLICT() throws Exception {
+        mockMvc.perform(get("/test/conflict"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("CONFLICT"));
+    }
+
+    @Test
+    void 메서드_보안_거부는_403_ACCESS_DENIED() throws Exception {
+        mockMvc.perform(get("/test/denied"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+    }
+
+    @Test
+    void 클라이언트가_끊은_연결은_500_본문을_쓰지_않는다() throws Exception {
+        var result = mockMvc.perform(get("/test/client-abort")).andReturn();
+        assertThat(result.getResponse().getContentAsString()).doesNotContain("INTERNAL_ERROR");
+    }
+
     @RestController
     static class TestController {
 
@@ -122,6 +194,34 @@ class ApiExceptionHandlerTest {
 
         @PostMapping("/test/valid")
         void valid(@Valid @RequestBody NameRequest request) {
+        }
+
+        @GetMapping("/test/header")
+        void header(@RequestHeader("X-Request-Key") String key) {
+        }
+
+        @PostMapping("/test/upload")
+        void upload(@RequestPart("file") MultipartFile file) {
+        }
+
+        @GetMapping("/test/multipart-broken")
+        void multipartBroken() {
+            throw new MultipartException("Failed to parse multipart servlet request");
+        }
+
+        @GetMapping("/test/conflict")
+        void conflict() {
+            throw new DataIntegrityViolationException("duplicate key value violates unique constraint");
+        }
+
+        @GetMapping("/test/denied")
+        void denied() {
+            throw new AuthorizationDeniedException("Access Denied", new AuthorizationDecision(false));
+        }
+
+        @GetMapping("/test/client-abort")
+        void clientAbort() throws IOException {
+            throw new ClientAbortException(new IOException("Broken pipe"));
         }
 
         @GetMapping("/test/boom")
