@@ -4,13 +4,17 @@ import com.u1_2.effect.chat.domain.ChatErrorCode;
 import com.u1_2.effect.chat.domain.ChatRepository;
 import com.u1_2.effect.chat.domain.ChatRepository.NewMessage;
 import com.u1_2.effect.chat.domain.ChatScope;
+import com.u1_2.effect.chat.domain.ChatScopeType;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse.Evidence;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse.Suggestion;
+import com.u1_2.effect.chat.presentation.dto.ChatThreadResponse;
 import com.u1_2.effect.config.ai.AiClient.ChatTurn;
 import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.global.exception.CommonErrorCode;
+import com.u1_2.effect.global.time.KoreaTime;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,6 +25,8 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 @RequiredArgsConstructor
 public class ChatThreadService {
+
+    private static final int THREAD_VIEW_LIMIT = 100;
 
     private final ChatRepository repository;
     private final JsonMapper jsonMapper;
@@ -49,6 +55,18 @@ public class ChatThreadService {
                 jsonMapper.writeValueAsString(answer.evidence()), jsonMapper.writeValueAsString(answer.suggestions()),
                 answer.modelVersion(), answeredAt));
         repository.touchThread(threadId, answeredAt);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ChatThreadResponse> findOpen(long userId, ChatScopeType type, String scopeId) {
+        return repository.findOpenThread(userId, type, scopeId).map(thread -> new ChatThreadResponse(
+                thread.threadId(), thread.scopeType(), thread.scopeId(),
+                repository.findRecentMessages(thread.threadId(), THREAD_VIEW_LIMIT).stream()
+                        .map(m -> new ChatThreadResponse.Message(m.role(), m.text(), m.status(),
+                                m.evidenceJson() == null ? null : jsonMapper.readTree(m.evidenceJson()),
+                                m.suggestionsJson() == null ? null : jsonMapper.readTree(m.suggestionsJson()),
+                                KoreaTime.inSeoul(m.createdAt())))
+                        .toList()));
     }
 
     private void openThread(long userId, ChatScope scope, UUID threadId, OffsetDateTime now) {

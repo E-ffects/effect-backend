@@ -21,6 +21,15 @@ public class ChatRepository {
                 """).param("threadId", threadId).query(ChatThread.class).optional();
     }
 
+    public Optional<ChatThread> findOpenThread(long userId, ChatScopeType type, String scopeId) {
+        return jdbcClient.sql("""
+                SELECT thread_id, user_id, scope_type, scope_id, closed_at
+                FROM app.chat_thread
+                WHERE user_id = :userId AND scope_type = :type AND scope_id = :scopeId AND closed_at IS NULL
+                """).param("userId", userId).param("type", type.name()).param("scopeId", scopeId)
+                .query(ChatThread.class).optional();
+    }
+
     public void closeOpenThreads(long userId, ChatScopeType type, String scopeId, OffsetDateTime now) {
         jdbcClient.sql("""
                 UPDATE app.chat_thread SET closed_at = :now
