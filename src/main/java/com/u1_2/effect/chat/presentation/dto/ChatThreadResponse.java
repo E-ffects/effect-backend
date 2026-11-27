@@ -10,7 +10,7 @@ import tools.jackson.databind.JsonNode;
 public record ChatThreadResponse(UUID threadId, String scopeType, String scopeId, List<Message> messages) {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Message(String role, String text, String status, JsonNode evidence, JsonNode suggestions,
+    public record Message(String role, String text, String status, JsonNode evidence,
                           OffsetDateTime createdAt) {
     }
 }

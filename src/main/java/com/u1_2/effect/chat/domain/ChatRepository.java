@@ -56,12 +56,12 @@ public class ChatRepository {
     public void insertMessage(UUID threadId, NewMessage message) {
         jdbcClient.sql("""
                 INSERT INTO app.chat_message
-                    (thread_id, role, text, status, evidence_json, suggestions_json, model_version, created_at)
-                VALUES (:threadId, :role, :text, :status, CAST(:evidence AS jsonb), CAST(:suggestions AS jsonb),
-                        :modelVersion, :createdAt)
+                    (thread_id, role, text, status, evidence_json, model_version, created_at)
+                VALUES (:threadId, :role, :text, :status, CAST(:evidence AS jsonb), :modelVersion,
+                        :createdAt)
                 """).param("threadId", threadId).param("role", message.role()).param("text", message.text())
                 .param("status", message.status()).param("evidence", message.evidenceJson())
-                .param("suggestions", message.suggestionsJson()).param("modelVersion", message.modelVersion())
+                .param("modelVersion", message.modelVersion())
                 .param("createdAt", message.createdAt()).update();
     }
 
@@ -69,8 +69,7 @@ public class ChatRepository {
     public List<Message> findRecentMessages(UUID threadId, int limit) {
         return jdbcClient.sql("""
                 SELECT * FROM (
-                    SELECT message_id, role, text, status, evidence_json::text AS evidence_json,
-                           suggestions_json::text AS suggestions_json, created_at
+                    SELECT message_id, role, text, status, evidence_json::text AS evidence_json, created_at
                     FROM app.chat_message WHERE thread_id = :threadId
                     ORDER BY message_id DESC LIMIT :limit
                 ) recent ORDER BY message_id
@@ -89,11 +88,11 @@ public class ChatRepository {
         }
     }
 
-    public record NewMessage(String role, String text, String status, String evidenceJson, String suggestionsJson,
+    public record NewMessage(String role, String text, String status, String evidenceJson,
                              String modelVersion, OffsetDateTime createdAt) {
     }
 
     public record Message(long messageId, String role, String text, String status, String evidenceJson,
-                          String suggestionsJson, OffsetDateTime createdAt) {
+                          OffsetDateTime createdAt) {
     }
 }
