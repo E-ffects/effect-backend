@@ -3,5 +3,11 @@ package com.u1_2.effect.chat.domain;
 /** 대화가 묶이는 화면 단위. 범위마다 문맥을 만드는 방식이 다름. */
 public enum ChatScopeType {
     RMA,
-    PATTERN
+    PATTERN,
+    /** RMA·패턴에 묶이지 않은 그 외 화면(대시보드, 목록 등). 범위 ID가 없음 */
+    GENERAL;
+
+    public boolean requiresId() {
+        return this != GENERAL;
+    }
 }
