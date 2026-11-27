@@ -3,6 +3,7 @@ package com.u1_2.effect.chat.presentation.dto;
 import com.u1_2.effect.chat.domain.ChatScope;
 import com.u1_2.effect.chat.domain.ChatScopeType;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -15,9 +16,16 @@ public record ChatRequest(
         @NotNull @Valid Scope scope,
         UUID threadId
 ) {
-    public record Scope(@NotNull ChatScopeType type, @NotBlank @Size(max = 64) String id, LocalDate from, LocalDate to) {
+    /** id는 RMA·PATTERN에서만 필수. GENERAL은 보내도 쓰지 않음 */
+    public record Scope(@NotNull ChatScopeType type, @Size(max = 64) String id, LocalDate from, LocalDate to) {
+
+        @AssertTrue
+        public boolean isIdPresent() {
+            return type == null || !type.requiresId() || (id != null && !id.isBlank());
+        }
+
         public ChatScope toScope() {
-            return new ChatScope(type, id.trim(), from, to);
+            return ChatScope.of(type, id, from, to);
         }
     }
 }

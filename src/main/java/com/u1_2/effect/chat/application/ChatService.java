@@ -3,6 +3,7 @@ package com.u1_2.effect.chat.application;
 import com.u1_2.effect.chat.application.ChatThreadService.Answer;
 import com.u1_2.effect.chat.application.context.ChatContextProvider;
 import com.u1_2.effect.chat.domain.ChatErrorCode;
+import com.u1_2.effect.chat.domain.ChatScope;
 import com.u1_2.effect.chat.domain.ChatScopeType;
 import com.u1_2.effect.chat.presentation.dto.ChatRequest;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse;
@@ -16,6 +17,7 @@ import com.u1_2.effect.config.ai.AiClient.ChatTurn;
 import com.u1_2.effect.config.ai.AiUnavailableException;
 import com.u1_2.effect.config.jwt.AuthUser;
 import com.u1_2.effect.global.exception.ApiException;
+import com.u1_2.effect.global.exception.CommonErrorCode;
 import com.u1_2.effect.global.time.KoreaTime;
 import com.u1_2.effect.user.application.RoleAccess;
 import com.u1_2.effect.user.domain.Role;
@@ -84,7 +86,7 @@ public class ChatService {
             throw new AiUnavailableException();
         }
         ChatReply reply = aiClient.chat(new AiClient.ChatRequest(threadId.toString(), user.role().name(),
-                new ChatScopeRef(scope.type().name(), scope.id()), request.message(), history, context));
+                new ChatScopeRef(scope.type().name(), scope.externalId()), request.message(), history, context));
 
         var answer = answer(reply, user.role());
         var answeredAt = OffsetDateTime.now(appClock);
@@ -98,7 +100,10 @@ public class ChatService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public Optional<ChatThreadResponse> openThread(ChatScopeType type, String scopeId, AuthUser user) {
         RoleAccess.requireMember(user.role());
-        return threads.findOpen(user.id(), type, scopeId.trim());
+        if (type.requiresId() && (scopeId == null || scopeId.isBlank())) {
+            throw new ApiException(CommonErrorCode.INVALID_INPUT);
+        }
+        return threads.findOpen(user.id(), type, ChatScope.of(type, scopeId, null, null).id());
     }
 
     private Answer answer(ChatReply reply, Role role) {
