@@ -156,7 +156,7 @@ class ChatIntegrationTest {
         doReturn(new ChatReply("ANSWERED", "REPLY", "회신 초안을 확인해 주세요.",
                 List.of(new ChatEvidence("ANALYSIS_CANDIDATE", null, "1순위 외층 에칭 잔동"),
                         new ChatEvidence("SIMILAR_CASE", "RMA-00015", "과거 처리 사례")),
-                List.of(), List.of(), "mock-chat")).when(aiClient).chat(any());
+                List.of(), List.of(), "mock-chat", null)).when(aiClient).chat(any());
 
         chat(CS_USER, Role.CS, "RMA", ANALYZED, null, "고객한테 뭐라고 회신해?")
                 .andExpect(status().isOk())
@@ -173,6 +173,22 @@ class ChatIntegrationTest {
                 .isEqualTo("회신 초안");
         assertThat(context.path("rma").path("items").path(0).has("lot_id")).isFalse();
         assertThat(context.toString()).doesNotContain("OLE-02", "내부 검토 메모");
+    }
+
+    @Test
+    void 품질팀_문맥에서도_AI가_쓰지_않는_필드는_빼고_보낸다() throws Exception {
+        chat(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED, null, "이 건 원인이 뭐야?").andExpect(status().isOk());
+
+        var captor = ArgumentCaptor.forClass(ChatRequest.class);
+        verify(aiClient).chat(captor.capture());
+        JsonNode context = captor.getValue().context();
+        JsonNode rma = context.path("rma");
+        assertThat(rma.path("rma_id").stringValue()).isEqualTo(ANALYZED);
+        assertThat(rma.has("follow_up_questions") || rma.has("triage_proposal") || rma.has("report")
+                || rma.has("follow_up_draft_available") || rma.has("error")).isFalse();
+        assertThat(rma.path("triage").propertyNames()).containsExactly("analysis_level");
+        assertThat(context.path("analysis").has("warnings")).isFalse();
+        assertThat(context.path("analysis").path("result").has("cause_candidates")).isTrue();
     }
 
     @Test
