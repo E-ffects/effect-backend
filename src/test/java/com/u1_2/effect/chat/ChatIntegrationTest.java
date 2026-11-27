@@ -176,6 +176,22 @@ class ChatIntegrationTest {
     }
 
     @Test
+    void 품질팀_문맥에서도_AI가_쓰지_않는_필드는_빼고_보낸다() throws Exception {
+        chat(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED, null, "이 건 원인이 뭐야?").andExpect(status().isOk());
+
+        var captor = ArgumentCaptor.forClass(ChatRequest.class);
+        verify(aiClient).chat(captor.capture());
+        JsonNode context = captor.getValue().context();
+        JsonNode rma = context.path("rma");
+        assertThat(rma.path("rma_id").stringValue()).isEqualTo(ANALYZED);
+        assertThat(rma.has("follow_up_questions") || rma.has("triage_proposal") || rma.has("report")
+                || rma.has("follow_up_draft_available") || rma.has("error")).isFalse();
+        assertThat(rma.path("triage").propertyNames()).containsExactly("analysis_level");
+        assertThat(context.path("analysis").has("warnings")).isFalse();
+        assertThat(context.path("analysis").path("result").has("cause_candidates")).isTrue();
+    }
+
+    @Test
     void 분석이_없으면_분석_시작을_제안하고_CS는_패턴_대화를_시작할_수_없다() throws Exception {
         chat(QUALITY_USER, Role.QUALITY, "RMA", NOT_ANALYZED, null, "원인이 뭐야?")
                 .andExpect(status().isOk())

@@ -258,13 +258,17 @@ class HttpAiClientIntegrationTest {
         responder = call -> new Reply(200, """
                 {"status":"ANSWERED","intent":"CAUSE","answer":"1순위 후보는 외층 에칭 잔동입니다.",
                  "evidence":[{"type":"SIMILAR_CASE","rma_id":"RMA-00015","label":"같은 증상 과거 사례"}],
-                 "suggestions":[],"warnings":[],"model_version":"chat-0.1+llm"}
+                 "suggestions":[],"warnings":["RAG_NOT_READY"],"model_version":"chat-0.1+llm",
+                 "elapsed_ms":2300}
                 """);
         var request = new AiClient.ChatRequest("thread-1", "QUALITY", new AiClient.ChatScopeRef("RMA", "RMA-10610"),
                 "원인이 뭐야?", List.of(new AiClient.ChatTurn("user", "이전 질문")), jsonMapper.createObjectNode());
         var reply = aiClient.chat(request);
         assertThat(reply.evidence()).singleElement().satisfies(e -> assertThat(e.rmaId()).isEqualTo("RMA-00015"));
         assertThat(reply.modelVersion()).isEqualTo("chat-0.1+llm");
+        assertThat(reply.intent()).isEqualTo("CAUSE");
+        assertThat(reply.elapsedMs()).isEqualTo(2300);
+        assertThat(reply.warnings()).containsExactly("RAG_NOT_READY");
         JsonNode sent = jsonMapper.readTree(CALLS.getLast().body());
         assertThat(CALLS.getLast().path()).isEqualTo("/ai/v1/chat");
         assertThat(sent.path("thread_id").stringValue()).isEqualTo("thread-1");
