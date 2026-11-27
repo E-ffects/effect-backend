@@ -81,10 +81,11 @@ class AuthIntegrationTest {
     }
 
     @Test
-    void 회원가입_후_로그인하면_토큰과_사용자_정보_그리고_Refresh_쿠키를_받는다() throws Exception {
+    void 회원가입_후_승인된_계정으로_로그인하면_토큰과_사용자_정보_그리고_Refresh_쿠키를_받는다() throws Exception {
         signup().andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value("SUCCESS"))
                 .andExpect(jsonPath("$.message").value("등록이 완료되었습니다."));
+        approveUser("hong");
 
         String body = login("hong", "Passw0rd!")
                 .andExpect(status().isOk())
@@ -93,6 +94,7 @@ class AuthIntegrationTest {
                 .andExpect(jsonPath("$.content.user.name").value("홍길동"))
                 .andExpect(jsonPath("$.content.user.role").value("QUALITY"))
                 .andExpect(jsonPath("$.content.user.role_label").value("품질관리자"))
+                .andExpect(jsonPath("$.content.user.is_admin").value(false))
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, Matchers.allOf(
                         Matchers.startsWith("refresh_token="),
                         Matchers.containsString("Path=/api/auth"),
@@ -145,7 +147,7 @@ class AuthIntegrationTest {
 
     @Test
     void 로그인한_사용자의_정보를_조회한다() throws Exception {
-        signup().andExpect(status().isOk());
+        signupAndApprove();
         String body = login("hong", "Passw0rd!").andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         String accessToken = JsonPath.read(body, "$.content.token");
@@ -209,7 +211,7 @@ class AuthIntegrationTest {
 
     @Test
     void 재발급하면_새_Access_Token과_새_Refresh_쿠키를_받고_이전_Refresh는_무효() throws Exception {
-        signup();
+        signupAndApprove();
         String oldRefresh = refreshCookie(login("hong", "Passw0rd!"));
 
         ResultActions reissued = reissue(oldRefresh)
@@ -231,7 +233,7 @@ class AuthIntegrationTest {
 
     @Test
     void 만료된_Access_Token이_헤더에_있어도_재발급된다() throws Exception {
-        signup();
+        signupAndApprove();
         String refresh = refreshCookie(login("hong", "Passw0rd!"));
 
         mockMvc.perform(post("/auth/reissue")
@@ -256,7 +258,7 @@ class AuthIntegrationTest {
 
     @Test
     void 로그아웃하면_Redis에서_삭제되고_쿠키가_만료되며_재발급할_수_없다() throws Exception {
-        signup();
+        signupAndApprove();
         String refresh = refreshCookie(login("hong", "Passw0rd!"));
         Long userId = userRepository.findByUsername("hong").orElseThrow().getId();
 
@@ -280,13 +282,97 @@ class AuthIntegrationTest {
 
     @Test
     void 이전_Refresh로_로그아웃해도_새_세션은_유지된다() throws Exception {
-        signup();
+        signupAndApprove();
         String oldRefresh = refreshCookie(login("hong", "Passw0rd!"));
         String newRefresh = refreshCookie(login("hong", "Passw0rd!"));
 
         mockMvc.perform(post("/auth/logout").cookie(new Cookie(RefreshTokenCookie.NAME, oldRefresh)))
                 .andExpect(status().isOk());
         reissue(newRefresh).andExpect(status().isOk());
+    }
+
+    @Test
+    void 회원가입_직후에는_승인_대기_상태로_로그인이_차단되고_관리자_승인_후_로그인된다() throws Exception {
+        signup().andExpect(status().isOk());
+
+        // 승인 전 로그인 차단
+        login("hong", "Passw0rd!")
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("APPROVAL_PENDING"));
+
+        // 관리자 계정(qa_good) 가입 시 즉시 승인 + admin 권한 부여
+        mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"관리자","username":"qa_good","password":"Passw0rd!","role":"QUALITY"}
+                                """))
+                .andExpect(status().isOk());
+
+        String adminBody = login("qa_good", "Passw0rd!")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.user.is_admin").value(true))
+                .andReturn().getResponse().getContentAsString();
+        String adminToken = JsonPath.read(adminBody, "$.content.token");
+
+        Long hongId = userRepository.findByUsername("hong").orElseThrow().getId();
+
+        // 관리자가 PENDING 목록 조회 후 승인
+        mockMvc.perform(get("/admin/users").param("status", "PENDING")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.items.length()").value(1))
+                .andExpect(jsonPath("$.content.items[0].username").value("hong"));
+
+        mockMvc.perform(post("/admin/users/" + hongId + "/approve")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.approval_status").value("APPROVED"));
+
+        // 승인 후 로그인 성공, 일반 사용자는 관리자 API 접근 불가
+        String userBody = login("hong", "Passw0rd!")
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String userToken = JsonPath.read(userBody, "$.content.token");
+
+        mockMvc.perform(get("/admin/users")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + userToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ADMIN_REQUIRED"));
+    }
+
+    @Test
+    void 관리자가_반려한_계정은_로그인이_차단된다() throws Exception {
+        signup().andExpect(status().isOk());
+        mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"관리자","username":"qa_good","password":"Passw0rd!","role":"QUALITY"}
+                                """))
+                .andExpect(status().isOk());
+
+        String adminBody = login("qa_good", "Passw0rd!")
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String adminToken = JsonPath.read(adminBody, "$.content.token");
+        Long hongId = userRepository.findByUsername("hong").orElseThrow().getId();
+
+        mockMvc.perform(post("/admin/users/" + hongId + "/reject")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.approval_status").value("REJECTED"));
+
+        login("hong", "Passw0rd!")
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("APPROVAL_REJECTED"));
+    }
+
+    private void signupAndApprove() throws Exception {
+        signup().andExpect(status().isOk());
+        approveUser("hong");
+    }
+
+    private void approveUser(String username) {
+        var user = userRepository.findByUsername(username).orElseThrow();
+        user.approve();
+        userRepository.save(user);
     }
 
     private ResultActions reissue(String refreshToken) throws Exception {
