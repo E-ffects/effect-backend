@@ -154,7 +154,7 @@ class ChatIntegrationTest {
 
     @Test
     void CS에는_화면과_같은_필터를_적용한_문맥을_보내고_원인_근거는_응답에서도_뺀다() throws Exception {
-        doReturn(new ChatReply("ANSWERED", "회신 초안을 확인해 주세요.",
+        doReturn(new ChatReply("ANSWERED", "REPLY", "회신 초안을 확인해 주세요.",
                 List.of(new ChatEvidence("ANALYSIS_CANDIDATE", null, "1순위 외층 에칭 잔동"),
                         new ChatEvidence("SIMILAR_CASE", "RMA-00015", "과거 처리 사례")),
                 List.of(), List.of(), "mock-chat")).when(aiClient).chat(any());
