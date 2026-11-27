@@ -119,7 +119,7 @@ SPRING_PROFILES_ACTIVE=local AI_MODE=mock ./gradlew bootRun
 - 패널 연결에는 Spring의 접수 상세·분석·유사 사례 API를 사용합니다. QUALITY의 분석 응답에 판정이 있으면 `cause_decision.approval_status`와 채택 시 `adopted_cause_code`가 들어갑니다. 후보는 `result.cause_candidates[]`에서 코드로 찾습니다.
 - 자유 질의는 `POST /api/chat`입니다. 본문은 `{message, scope: {type, id, from?, to?}, thread_id?}`이고 `scope.type`은 `RMA`(상세 화면, QUALITY·CS), `PATTERN`(불량 패턴 화면, QUALITY), `GENERAL`(그 외 화면, QUALITY·CS) 중 하나입니다. `GENERAL`은 `id` 없이 보내고, 문맥은 아직 비어 있습니다. `from`·`to`는 패턴 집계 기간입니다.
 - 대화는 사용자·범위마다 하나가 열려 있습니다. `thread_id` 없이 보내면 그 범위의 이전 대화를 닫고 새 대화를 시작하며, 응답의 `thread_id`를 다음 질문에 보냅니다. 새로고침 후에는 `GET /api/chat/threads?scope_type=&scope_id=`로 열린 대화를 불러옵니다(없으면 `content: null`, `GENERAL`은 `scope_id` 생략).
-- 응답은 `{thread_id, status, answer, evidence[{type, rma_id, label}], created_at}`입니다. `status`는 `ANSWERED`, `NEED_ANALYSIS`, `OUT_OF_SCOPE`, `FALLBACK`이고, 분석이 없는 RMA는 `NEED_ANALYSIS`를 받습니다.
+- 응답은 `{thread_id, status, answer, evidence[{type, rma_id, label}], suggestions[{task, label}], created_at}`입니다. `status`는 `ANSWERED`, `NEED_ANALYSIS`, `OUT_OF_SCOPE`, `FALLBACK`이고, 분석이 없는 RMA는 `NEED_ANALYSIS`와 `start_analysis` 제안을 받습니다.
 - AI에 보내는 문맥은 화면과 같은 조회 서비스(`RmaDetailService`, `RmaAnalysisService`, `PatternService`)를 거쳐 CS에는 원인·설비·Lot 정보가 들어가지 않습니다. 대화는 Spring이 `app.chat_thread`·`app.chat_message`에 저장하고 최근 10개를 AI에 함께 보냅니다(AI 서버는 상태 없음).
 - 오류: 다른 사용자·다른 범위·닫힌 대화 404 `CHAT_THREAD_NOT_FOUND`, 사용자당 1분 10회 초과 429 `CHAT_RATE_LIMITED`(Redis, 장애 시 통과), AI 장애 503 `AI_UNAVAILABLE`(저장하지 않음). 마지막 메시지 후 30일이 지난 대화는 매일 04:30에 삭제합니다.
 

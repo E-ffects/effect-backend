@@ -8,6 +8,7 @@ import com.u1_2.effect.chat.domain.ChatScopeType;
 import com.u1_2.effect.chat.presentation.dto.ChatRequest;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse.Evidence;
+import com.u1_2.effect.chat.presentation.dto.ChatResponse.Suggestion;
 import com.u1_2.effect.chat.presentation.dto.ChatThreadResponse;
 import com.u1_2.effect.config.ai.AiClient;
 import com.u1_2.effect.config.ai.AiClient.ChatReply;
@@ -92,7 +93,7 @@ public class ChatService {
         threads.saveExchange(user.id(), scope, threadId, newThread, request.message(), answer, askedAt, answeredAt);
         log.info("chat answered. user={}, scope={}:{}, thread={}, status={}, model={}", user.id(), scope.type(),
                 scope.id(), threadId, reply.status(), reply.modelVersion());
-        return new ChatResponse(threadId, answer.status(), answer.text(), answer.evidence(),
+        return new ChatResponse(threadId, answer.status(), answer.text(), answer.evidence(), answer.suggestions(),
                 KoreaTime.inSeoul(answeredAt));
     }
 
@@ -109,6 +110,8 @@ public class ChatService {
         var evidence = Optional.ofNullable(reply.evidence()).orElse(List.of()).stream().filter(Objects::nonNull)
                 .filter(e -> role == Role.QUALITY || CS_EVIDENCE.contains(e.type()))
                 .limit(5).map(e -> new Evidence(e.type(), e.rmaId(), e.label())).toList();
-        return new Answer(reply.answer(), reply.status(), evidence, reply.modelVersion());
+        var suggestions = Optional.ofNullable(reply.suggestions()).orElse(List.of()).stream().filter(Objects::nonNull)
+                .map(s -> new Suggestion(s.task(), s.label())).toList();
+        return new Answer(reply.answer(), reply.status(), evidence, suggestions, reply.modelVersion());
     }
 }

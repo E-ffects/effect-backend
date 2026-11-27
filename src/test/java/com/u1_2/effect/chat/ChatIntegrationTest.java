@@ -157,7 +157,7 @@ class ChatIntegrationTest {
         doReturn(new ChatReply("ANSWERED", "회신 초안을 확인해 주세요.",
                 List.of(new ChatEvidence("ANALYSIS_CANDIDATE", null, "1순위 외층 에칭 잔동"),
                         new ChatEvidence("SIMILAR_CASE", "RMA-00015", "과거 처리 사례")),
-                List.of(), "mock-chat")).when(aiClient).chat(any());
+                List.of(), List.of(), "mock-chat")).when(aiClient).chat(any());
 
         chat(CS_USER, Role.CS, "RMA", ANALYZED, null, "고객한테 뭐라고 회신해?")
                 .andExpect(status().isOk())
@@ -181,7 +181,7 @@ class ChatIntegrationTest {
         chat(QUALITY_USER, Role.QUALITY, "RMA", NOT_ANALYZED, null, "원인이 뭐야?")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.status").value("NEED_ANALYSIS"))
-                .andExpect(jsonPath("$.content.answer", containsString("분석을 먼저 실행")));
+                .andExpect(jsonPath("$.content.suggestions[0].task").value("start_analysis"));
         chat(CS_USER, Role.CS, "PATTERN", "INV-A", null, "주요 원인은?")
                 .andExpect(status().isForbidden());
         chat(QUALITY_USER, Role.QUALITY, "RMA", "RMA-MISSING", null, "원인은?")

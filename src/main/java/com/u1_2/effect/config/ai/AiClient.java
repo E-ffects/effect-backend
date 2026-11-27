@@ -42,11 +42,14 @@ public interface AiClient {
     record ChatTurn(String role, String text) {
     }
 
-    record ChatReply(String status, String answer, List<ChatEvidence> evidence, List<String> warnings,
-                     String modelVersion) {
+    record ChatReply(String status, String answer, List<ChatEvidence> evidence,
+                     List<ChatSuggestion> suggestions, List<String> warnings, String modelVersion) {
     }
 
     record ChatEvidence(String type, String rmaId, String label) {
+    }
+
+    record ChatSuggestion(String task, String label) {
     }
 
     record FollowUp(String customerReply) {

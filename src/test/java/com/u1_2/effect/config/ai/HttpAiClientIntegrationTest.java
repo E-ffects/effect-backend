@@ -258,7 +258,7 @@ class HttpAiClientIntegrationTest {
         responder = call -> new Reply(200, """
                 {"status":"ANSWERED","intent":"CAUSE","answer":"1순위 후보는 외층 에칭 잔동입니다.",
                  "evidence":[{"type":"SIMILAR_CASE","rma_id":"RMA-00015","label":"같은 증상 과거 사례"}],
-                 "warnings":[],"model_version":"chat-0.1+llm"}
+                 "suggestions":[],"warnings":[],"model_version":"chat-0.1+llm"}
                 """);
         var request = new AiClient.ChatRequest("thread-1", "QUALITY", new AiClient.ChatScopeRef("RMA", "RMA-10610"),
                 "원인이 뭐야?", List.of(new AiClient.ChatTurn("user", "이전 질문")), jsonMapper.createObjectNode());

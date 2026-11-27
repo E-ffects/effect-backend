@@ -6,6 +6,7 @@ import com.u1_2.effect.chat.domain.ChatRepository.NewMessage;
 import com.u1_2.effect.chat.domain.ChatScope;
 import com.u1_2.effect.chat.domain.ChatScopeType;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse.Evidence;
+import com.u1_2.effect.chat.presentation.dto.ChatResponse.Suggestion;
 import com.u1_2.effect.chat.presentation.dto.ChatThreadResponse;
 import com.u1_2.effect.config.ai.AiClient.ChatTurn;
 import com.u1_2.effect.global.exception.ApiException;
@@ -49,9 +50,10 @@ public class ChatThreadService {
         if (newThread) {
             openThread(userId, scope, threadId, askedAt);
         }
-        repository.insertMessage(threadId, new NewMessage("user", question, null, null, null, askedAt));
+        repository.insertMessage(threadId, new NewMessage("user", question, null, null, null, null, askedAt));
         repository.insertMessage(threadId, new NewMessage("assistant", answer.text(), answer.status(),
-                jsonMapper.writeValueAsString(answer.evidence()), answer.modelVersion(), answeredAt));
+                jsonMapper.writeValueAsString(answer.evidence()), jsonMapper.writeValueAsString(answer.suggestions()),
+                answer.modelVersion(), answeredAt));
         repository.touchThread(threadId, answeredAt);
     }
 
@@ -62,6 +64,7 @@ public class ChatThreadService {
                 repository.findRecentMessages(thread.threadId(), THREAD_VIEW_LIMIT).stream()
                         .map(m -> new ChatThreadResponse.Message(m.role(), m.text(), m.status(),
                                 m.evidenceJson() == null ? null : jsonMapper.readTree(m.evidenceJson()),
+                                m.suggestionsJson() == null ? null : jsonMapper.readTree(m.suggestionsJson()),
                                 KoreaTime.inSeoul(m.createdAt())))
                         .toList()));
     }
@@ -76,6 +79,7 @@ public class ChatThreadService {
         throw new ApiException(CommonErrorCode.INTERNAL_ERROR);
     }
 
-    public record Answer(String text, String status, List<Evidence> evidence, String modelVersion) {
+    public record Answer(String text, String status, List<Evidence> evidence, List<Suggestion> suggestions,
+                         String modelVersion) {
     }
 }
