@@ -31,7 +31,7 @@ public interface AiClient {
     /** 에이전트 패널 자유 질의. AI는 대화를 저장하지 않으므로 Spring이 최근 대화와 문맥을 함께 보냄. */
     ChatReply chat(ChatRequest request);
 
-    // ---- 챗봇 계약(초안). 필드 확정은 AI 담당과 합의 후 반영함. context는 범위별 모양이 달라 JSON으로 둠
+    // ---- 챗봇 계약 (docs/CHAT_AI_API.md). context는 범위별 모양이 달라 JSON으로 둠
     record ChatRequest(String threadId, String audience, ChatScopeRef scope, String message,
                        List<ChatTurn> history, JsonNode context) {
     }
@@ -43,7 +43,8 @@ public interface AiClient {
     }
 
     record ChatReply(String status, String intent, String answer, List<ChatEvidence> evidence,
-                     List<ChatSuggestion> suggestions, List<String> warnings, String modelVersion) {
+                     List<ChatSuggestion> suggestions, List<String> warnings, String modelVersion,
+                     Integer elapsedMs) {
     }
 
     record ChatEvidence(String type, String rmaId, String label) {

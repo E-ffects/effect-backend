@@ -156,7 +156,7 @@ class ChatIntegrationTest {
         doReturn(new ChatReply("ANSWERED", "REPLY", "회신 초안을 확인해 주세요.",
                 List.of(new ChatEvidence("ANALYSIS_CANDIDATE", null, "1순위 외층 에칭 잔동"),
                         new ChatEvidence("SIMILAR_CASE", "RMA-00015", "과거 처리 사례")),
-                List.of(), List.of(), "mock-chat")).when(aiClient).chat(any());
+                List.of(), List.of(), "mock-chat", null)).when(aiClient).chat(any());
 
         chat(CS_USER, Role.CS, "RMA", ANALYZED, null, "고객한테 뭐라고 회신해?")
                 .andExpect(status().isOk())

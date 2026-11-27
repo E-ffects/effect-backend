@@ -3,6 +3,7 @@ package com.u1_2.effect.chat.application;
 import com.u1_2.effect.chat.application.ChatThreadService.Answer;
 import com.u1_2.effect.chat.application.context.ChatContextProvider;
 import com.u1_2.effect.chat.domain.ChatErrorCode;
+import com.u1_2.effect.chat.domain.ChatScope;
 import com.u1_2.effect.chat.domain.ChatScopeType;
 import com.u1_2.effect.chat.presentation.dto.ChatRequest;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse;
@@ -89,8 +90,7 @@ public class ChatService {
         var answer = answer(reply, user.role());
         var answeredAt = OffsetDateTime.now(appClock);
         threads.saveExchange(user.id(), scope, threadId, newThread, request.message(), answer, askedAt, answeredAt);
-        log.info("chat answered. user={}, scope={}:{}, thread={}, status={}, model={}", user.id(), scope.type(),
-                scope.id(), threadId, reply.status(), reply.modelVersion());
+        logReply(user, scope, threadId, reply);
         return new ChatResponse(threadId, answer.status(), answer.text(), answer.evidence(), answer.suggestions(),
                 KoreaTime.inSeoul(answeredAt));
     }
@@ -99,6 +99,20 @@ public class ChatService {
     public Optional<ChatThreadResponse> openThread(ChatScopeType type, String scopeId, AuthUser user) {
         RoleAccess.requireMember(user.role());
         return threads.findOpen(user.id(), type, scopeId.trim());
+    }
+
+    /** warnings(LLM 실패, 근거 없는 수치 차단, RAG 미준비)는 화면에 안 보이고 로그로만 확인함 */
+    private void logReply(AuthUser user, ChatScope scope, UUID threadId, ChatReply reply) {
+        var warnings = Optional.ofNullable(reply.warnings()).orElse(List.of());
+        Object[] args = {user.id(), scope.type(), scope.id(), threadId, reply.status(), reply.intent(),
+                reply.modelVersion(), reply.elapsedMs(), warnings};
+        String format = "chat answered. user={}, scope={}:{}, thread={}, status={}, intent={}, model={}, "
+                + "elapsed_ms={}, warnings={}";
+        if (warnings.isEmpty()) {
+            log.info(format, args);
+        } else {
+            log.warn(format, args);
+        }
     }
 
     private Answer answer(ChatReply reply, Role role) {
