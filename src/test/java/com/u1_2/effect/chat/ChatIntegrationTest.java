@@ -3,6 +3,7 @@ package com.u1_2.effect.chat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -205,6 +206,35 @@ class ChatIntegrationTest {
     }
 
     @Test
+    void 그_외_화면은_범위_ID_없이_사용자마다_대화_하나로_이어간다() throws Exception {
+        String threadId = threadId(chat(CS_USER, Role.CS, "GENERAL", null, null, "이번 주 접수 몇 건이야?")
+                .andExpect(jsonPath("$.content.status").value("ANSWERED")));
+        chat(CS_USER, Role.CS, "GENERAL", null, threadId, "그중 미해결은?")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.answer", containsString("이전 대화 2개")));
+        threadId(chat(QUALITY_USER, Role.QUALITY, "GENERAL", null, null, "품질팀 질문"));
+
+        var captor = ArgumentCaptor.forClass(ChatRequest.class);
+        verify(aiClient, times(3)).chat(captor.capture());
+        var sent = captor.getAllValues().getFirst();
+        assertThat(sent.scope().type()).isEqualTo("GENERAL");
+        assertThat(sent.scope().id()).isNull();
+        assertThat(sent.context().isEmpty()).isTrue();
+
+        thread(CS_USER, Role.CS, "GENERAL", null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.thread_id").value(threadId))
+                .andExpect(jsonPath("$.content.messages.length()").value(4));
+        assertThat(jdbc.sql("SELECT count(*) FROM app.chat_thread WHERE scope_type = 'GENERAL' AND closed_at IS NULL")
+                .query(Long.class).single()).isEqualTo(2);
+
+        // GENERAL 대화를 RMA 화면에서 이어 쓰면 문맥이 섞이므로 막음
+        chat(CS_USER, Role.CS, "RMA", ANALYZED, threadId, "이 건은?").andExpect(status().isNotFound());
+        chat(CS_USER, Role.CS, "RMA", null, null, "범위 ID 없음").andExpect(status().isBadRequest());
+        thread(CS_USER, Role.CS, "RMA", null).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void 메시지와_범위가_없거나_형식이_틀리면_400이다() throws Exception {
         chat(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED, null, " ").andExpect(status().isBadRequest());
         chat(QUALITY_USER, Role.QUALITY, "RMA", ANALYZED, null, "가".repeat(1001)).andExpect(status().isBadRequest());
@@ -225,8 +255,9 @@ class ChatIntegrationTest {
     }
 
     private ResultActions thread(long userId, Role role, String type, String id) throws Exception {
-        return mvc.perform(get("/api/chat/threads").contextPath("/api").header("Authorization", token(userId, role))
-                .param("scope_type", type).param("scope_id", id));
+        var request = get("/api/chat/threads").contextPath("/api").header("Authorization", token(userId, role))
+                .param("scope_type", type);
+        return mvc.perform(id == null ? request : request.param("scope_id", id));
     }
 
     private String threadId(ResultActions result) throws Exception {
