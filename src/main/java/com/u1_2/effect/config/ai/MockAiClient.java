@@ -134,14 +134,14 @@ public class MockAiClient implements AiClient {
         }
         var context = request.context();
         if ("RMA".equals(request.scope().type()) && context.path("analysis").isNull()) {
-            return new ChatReply("NEED_ANALYSIS", "STATUS", "아직 원인분석 결과가 없어 답변할 근거가 없습니다. 분석을 먼저 실행해 주세요.",
+            return new ChatReply("NEED_ANALYSIS", "아직 원인분석 결과가 없어 답변할 근거가 없습니다. 분석을 먼저 실행해 주세요.",
                     List.of(), List.of(new ChatSuggestion("start_analysis", "분석 시작")), List.of(), "mock-chat");
         }
         var evidence = "PATTERN".equals(request.scope().type())
                 ? context.path("pattern").path("evidence").valueStream().limit(1)
                         .map(row -> new ChatEvidence("RMA", row.path("rma_id").asString(), "패턴 근거 RMA")).toList()
                 : List.<ChatEvidence>of();
-        return new ChatReply("ANSWERED", "OTHER", "[목업] '%s'에 대한 답변입니다. 이전 대화 %d개를 참고했습니다."
+        return new ChatReply("ANSWERED", "[목업] '%s'에 대한 답변입니다. 이전 대화 %d개를 참고했습니다."
                 .formatted(request.message(), request.history().size()), evidence, List.of(), List.of(), "mock-chat");
     }
 
