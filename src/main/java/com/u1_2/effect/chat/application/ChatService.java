@@ -8,6 +8,7 @@ import com.u1_2.effect.chat.presentation.dto.ChatRequest;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse.Evidence;
 import com.u1_2.effect.chat.presentation.dto.ChatResponse.Suggestion;
+import com.u1_2.effect.chat.presentation.dto.ChatThreadResponse;
 import com.u1_2.effect.config.ai.AiClient;
 import com.u1_2.effect.config.ai.AiClient.ChatReply;
 import com.u1_2.effect.config.ai.AiClient.ChatScopeRef;
@@ -92,6 +93,12 @@ public class ChatService {
                 scope.id(), threadId, reply.status(), reply.modelVersion());
         return new ChatResponse(threadId, answer.status(), answer.text(), answer.evidence(), answer.suggestions(),
                 KoreaTime.inSeoul(answeredAt));
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public Optional<ChatThreadResponse> openThread(ChatScopeType type, String scopeId, AuthUser user) {
+        RoleAccess.requireMember(user.role());
+        return threads.findOpen(user.id(), type, scopeId.trim());
     }
 
     private Answer answer(ChatReply reply, Role role) {
