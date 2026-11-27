@@ -6,6 +6,7 @@ import com.u1_2.effect.config.jwt.RefreshTokenRepository;
 import com.u1_2.effect.config.jwt.TokenType;
 import com.u1_2.effect.global.exception.ApiException;
 import com.u1_2.effect.global.exception.AuthErrorCode;
+import com.u1_2.effect.user.domain.ApprovalStatus;
 import com.u1_2.effect.user.domain.User;
 import com.u1_2.effect.user.domain.UserErrorCode;
 import com.u1_2.effect.user.domain.UserRepository;
@@ -13,6 +14,7 @@ import com.u1_2.effect.user.presentation.dto.LoginRequest;
 import com.u1_2.effect.user.presentation.dto.SignupRequest;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -64,6 +66,8 @@ public class AuthService {
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
                 .orElseThrow(() -> new ApiException(AuthErrorCode.INVALID_CREDENTIALS));
 
+        requireApproved(user);
+
         var tokens = createSessionTokens(user);
         refreshTokenRepository.save(user.getId(), tokens.refreshToken());
 
@@ -78,6 +82,7 @@ public class AuthService {
         TokenClaims claims = parseRefreshToken(refreshToken);
         // 권한이 바뀌었을 수 있으므로 DB의 현재 권한으로 토큰을 만든 뒤 기존 세션과 일치할 때만 교체함
         User user = getCurrentUser(claims.userId());
+        requireApproved(user);
         var tokens = createSessionTokens(user);
         if (!refreshTokenRepository.rotate(user.getId(), refreshToken, tokens.refreshToken())) {
             log.warn("Refresh token mismatch: userId={}", claims.userId());
@@ -86,6 +91,47 @@ public class AuthService {
 
         log.info("Reissue: userId={}", user.getId());
         return tokens;
+    }
+
+    public List<User> listUsersForAdmin(Long adminUserId, ApprovalStatus status) {
+        requireAdmin(adminUserId);
+        return status == null
+                ? userRepository.findAllByOrderByCreatedAtDesc()
+                : userRepository.findByApprovalStatusOrderByCreatedAtDesc(status);
+    }
+
+    @Transactional
+    public User approveUser(Long adminUserId, Long targetUserId) {
+        requireAdmin(adminUserId);
+        User target = userRepository.findByIdOrThrow(targetUserId, UserErrorCode.USER_NOT_FOUND);
+        target.approve();
+        log.info("User approved: adminId={}, targetUserId={}", adminUserId, targetUserId);
+        return target;
+    }
+
+    @Transactional
+    public User rejectUser(Long adminUserId, Long targetUserId) {
+        requireAdmin(adminUserId);
+        User target = userRepository.findByIdOrThrow(targetUserId, UserErrorCode.USER_NOT_FOUND);
+        target.reject();
+        log.info("User rejected: adminId={}, targetUserId={}", adminUserId, targetUserId);
+        return target;
+    }
+
+    private void requireAdmin(Long userId) {
+        User user = getCurrentUser(userId);
+        if (!user.isAdmin()) {
+            throw new ApiException(UserErrorCode.ADMIN_REQUIRED);
+        }
+    }
+
+    private void requireApproved(User user) {
+        if (user.getApprovalStatus() == ApprovalStatus.PENDING) {
+            throw new ApiException(UserErrorCode.APPROVAL_PENDING);
+        }
+        if (user.getApprovalStatus() == ApprovalStatus.REJECTED) {
+            throw new ApiException(UserErrorCode.APPROVAL_REJECTED);
+        }
     }
 
     private SessionTokens createSessionTokens(User user) {

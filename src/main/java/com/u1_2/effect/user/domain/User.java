@@ -39,20 +39,44 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false, length = 20)
+    private ApprovalStatus approvalStatus;
+
+    @Column(name = "is_admin", nullable = false)
+    private boolean admin;
+
     @Builder(access = AccessLevel.PRIVATE)
-    private User(String username, String password, String name, Role role) {
+    private User(String username, String password, String name, Role role, ApprovalStatus approvalStatus, boolean admin) {
         this.username = username;
         this.password = password;
         this.name = name;
         this.role = role;
+        this.approvalStatus = approvalStatus;
+        this.admin = admin;
     }
 
     public static User create(String username, String encodedPassword, String name, Role role) {
+        boolean isBootstrapAdmin = "qa_good".equals(username);
         return User.builder()
                 .username(username)
                 .password(encodedPassword)
                 .name(name)
                 .role(role)
+                .approvalStatus(isBootstrapAdmin ? ApprovalStatus.APPROVED : ApprovalStatus.PENDING)
+                .admin(isBootstrapAdmin)
                 .build();
+    }
+
+    public boolean isApproved() {
+        return approvalStatus == ApprovalStatus.APPROVED;
+    }
+
+    public void approve() {
+        this.approvalStatus = ApprovalStatus.APPROVED;
+    }
+
+    public void reject() {
+        this.approvalStatus = ApprovalStatus.REJECTED;
     }
 }

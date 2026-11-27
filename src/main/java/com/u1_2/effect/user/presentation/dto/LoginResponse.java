@@ -11,9 +11,9 @@ public record LoginResponse(
         return new LoginResponse(accessToken, UserSummary.from(user));
     }
 
-    public record UserSummary(String name, Role role, String roleLabel) {
+    public record UserSummary(String username, String name, Role role, String roleLabel, boolean isAdmin) {
         static UserSummary from(User user) {
-            return new UserSummary(user.getName(), user.getRole(), user.getRole().getLabel());
+            return new UserSummary(user.getUsername(), user.getName(), user.getRole(), user.getRole().getLabel(), user.isAdmin());
         }
     }
 }
